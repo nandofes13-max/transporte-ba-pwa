@@ -67,6 +67,65 @@ body {
     box-shadow: 0 2px 8px rgba(255,255,255,0.3);
 }
 
+/* Botón manual de instalación */
+.manual-install {
+    margin-bottom: 1.5rem;
+    text-align: center;
+    animation: fadeIn 0.5s ease-out;
+}
+
+.manual-install.hidden {
+    display: none;
+}
+
+.btn-install-manual {
+    background: linear-gradient(135deg, #4caf50, #45a049);
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 25px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 100%;
+    font-size: 1rem;
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
+.btn-install-manual:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(76, 175, 80, 0.4);
+}
+
+.btn-install-manual:active {
+    transform: translateY(0);
+}
+
+/* Instrucciones de instalación */
+.install-instructions {
+    background: #e8f5e8;
+    border-radius: 10px;
+    padding: 1.5rem;
+    border-left: 4px solid #4caf50;
+    margin-top: 1rem;
+}
+
+.install-instructions h3 {
+    color: #2e7d32;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+.install-instructions p {
+    margin-bottom: 0.8rem;
+    color: #555;
+    line-height: 1.4;
+}
+
+.install-instructions strong {
+    color: #2e7d32;
+}
+
 @keyframes slideDown {
     from {
         transform: translateY(-100%);
@@ -78,12 +137,24 @@ body {
     }
 }
 
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 /* Ajustar el header para cuando el banner está visible */
 .header {
     text-align: center;
     color: white;
     margin-bottom: 2rem;
     padding-top: 1rem;
+    transition: padding-top 0.3s ease;
 }
 
 .install-banner:not(.hidden) + .header {
@@ -173,6 +244,11 @@ body {
     
     .install-content span {
         font-size: 0.9rem;
+    }
+    
+    .btn-install-manual {
+        padding: 10px 16px;
+        font-size: 0.95rem;
     }
 }
 
