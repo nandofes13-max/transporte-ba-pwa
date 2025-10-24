@@ -1,0 +1,121 @@
+/* css/styles.css - Estilos para la PWA de Transporte */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #0d47a1, #1976d2);
+    color: #333;
+    min-height: 100vh;
+}
+
+#app {
+    max-width: 400px;
+    margin: 0 auto;
+    padding: 20px;
+    min-height: 100vh;
+}
+
+.header {
+    text-align: center;
+    color: white;
+    margin-bottom: 2rem;
+    padding-top: 1rem;
+}
+
+.header h1 {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.header p {
+    opacity: 0.9;
+    font-size: 1rem;
+}
+
+.main-content {
+    background: white;
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    text-align: center;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #0d47a1, #1976d2);
+    color: white;
+    border: none;
+    padding: 15px 25px;
+    font-size: 1.1rem;
+    border-radius: 50px;
+    cursor: pointer;
+    width: 100%;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(13, 71, 161, 0.3);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(13, 71, 161, 0.4);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+.results {
+    margin-top: 2rem;
+    text-align: left;
+}
+
+.feature-coming {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 1.5rem;
+    border-left: 4px solid #0d47a1;
+}
+
+.feature-coming h3 {
+    color: #0d47a1;
+    margin-bottom: 0.5rem;
+}
+
+.feature-coming p {
+    color: #666;
+    line-height: 1.5;
+}
+
+/* Estilos para móviles */
+@media (max-width: 480px) {
+    #app {
+        padding: 15px;
+    }
+    
+    .header h1 {
+        font-size: 1.7rem;
+    }
+    
+    .main-content {
+        padding: 1.5rem;
+    }
+}
+
+/* Estados de carga */
+.loading {
+    text-align: center;
+    padding: 2rem;
+    color: #666;
+}
+
+.error {
+    background: #ffebee;
+    color: #c62828;
+    padding: 1rem;
+    border-radius: 10px;
+    text-align: center;
+    border-left: 4px solid #c62828;
+}
