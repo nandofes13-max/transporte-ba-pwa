@@ -1,4 +1,4 @@
-// js/app.js - Archivo con logs de diagnóstico
+// js/app.js - Archivo con instalación automática
 class TransporteApp {
     constructor() {
         this.deferredPrompt = null;
@@ -36,8 +36,9 @@ class TransporteApp {
             this.deferredPrompt = e;
             console.log('✅ deferredPrompt guardado');
             
-            // 🆕 MOSTRAR EL BANNER AUTOMÁTICAMENTE
-            this.showInstallBanner();
+            // 🆕 MOSTRAR PROMPT AUTOMÁTICAMENTE
+            console.log('🚀 Mostrando prompt de instalación automáticamente');
+            this.showInstallPrompt();
         });
 
         // Escuchar cuando la app es instalada
@@ -49,10 +50,28 @@ class TransporteApp {
         console.log('📝 Eventos de instalación configurados');
     }
 
+    // 🆕 FUNCIÓN NUEVA: Mostrar prompt automáticamente
+    showInstallPrompt() {
+        if (this.deferredPrompt) {
+            this.deferredPrompt.prompt();
+            this.deferredPrompt.userChoice.then((choiceResult) => {
+                if (choiceResult.outcome === 'accepted') {
+                    console.log('✅ Usuario aceptó instalar la PWA');
+                    this.hideInstallOptions();
+                } else {
+                    console.log('❌ Usuario rechazó instalar la PWA');
+                    // Mostrar el banner como fallback
+                    this.showInstallBanner();
+                }
+                this.deferredPrompt = null;
+            });
+        }
+    }
+
     showInstallBanner() {
         console.log('🟠 Mostrando banner de instalación');
         const installBanner = document.getElementById('installBanner');
-        if (installBanner && this.deferredPrompt) {
+        if (installBanner) {
             installBanner.classList.remove('hidden');
             console.log('✅ Banner de instalación visible');
         }
