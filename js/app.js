@@ -1,4 +1,4 @@
-// js/app.js - Archivo principal de la PWA (versión simplificada)
+// js/app.js - Archivo con logs de diagnóstico
 class TransporteApp {
     constructor() {
         this.deferredPrompt = null;
@@ -7,6 +7,8 @@ class TransporteApp {
 
     async init() {
         console.log('🚍 Transporte BA PWA iniciada');
+        console.log('📱 Display mode:', window.matchMedia('(display-mode: standalone)').matches);
+        console.log('🔧 Service Worker support:', 'serviceWorker' in navigator);
         
         // Manejar la instalación de la PWA
         this.setupInstallPrompt();
@@ -15,9 +17,9 @@ class TransporteApp {
         if ('serviceWorker' in navigator) {
             try {
                 await navigator.serviceWorker.register('/sw.js');
-                console.log('Service Worker registrado');
+                console.log('✅ Service Worker registrado');
             } catch (error) {
-                console.log('Error registrando SW:', error);
+                console.log('❌ Error registrando SW:', error);
             }
         }
 
@@ -25,11 +27,14 @@ class TransporteApp {
     }
 
     setupInstallPrompt() {
+        console.log('🔧 Configurando eventos de instalación...');
+        
         // Escuchar el evento beforeinstallprompt
         window.addEventListener('beforeinstallprompt', (e) => {
-            console.log('🎯 Evento beforeinstallprompt disparado');
+            console.log('🎯 Evento beforeinstallprompt DISPARADO');
             e.preventDefault();
             this.deferredPrompt = e;
+            console.log('✅ deferredPrompt guardado');
         });
 
         // Escuchar cuando la app es instalada
@@ -37,20 +42,28 @@ class TransporteApp {
             console.log('🎉 PWA instalada en el dispositivo');
             this.hideInstallOptions();
         });
+
+        console.log('📝 Eventos de instalación configurados');
     }
 
     hideInstallOptions() {
+        console.log('🔒 Ocultando opciones de instalación');
         const installSection = document.getElementById('installSection');
         if (installSection) {
             installSection.style.display = 'none';
+            console.log('✅ Sección de instalación ocultada');
         }
     }
 
     async installApp() {
+        console.log('🖱️ Botón Instalar clickeado');
+        console.log('📦 deferredPrompt disponible:', !!this.deferredPrompt);
+        
         if (this.deferredPrompt) {
-            // Intentar instalación automática
+            console.log('🚀 Intentando instalación automática...');
             this.deferredPrompt.prompt();
             const { outcome } = await this.deferredPrompt.userChoice;
+            console.log('📋 Resultado instalación:', outcome);
             
             if (outcome === 'accepted') {
                 console.log('✅ Usuario aceptó instalar la PWA');
@@ -59,11 +72,12 @@ class TransporteApp {
             }
         }
         
-        // Si no funciona la automática, mostrar instrucciones
+        console.log('📚 Mostrando instrucciones manuales');
         this.showInstallInstructions();
     }
 
     showInstallInstructions() {
+        console.log('📖 Mostrando instrucciones de instalación');
         const results = document.getElementById('results');
         results.innerHTML = `
             <div class="install-instructions">
@@ -89,6 +103,10 @@ class TransporteApp {
     }
 
     loadApp() {
+        console.log('🔄 Cargando interfaz de la app...');
+        const isInstalled = window.matchMedia('(display-mode: standalone)').matches;
+        console.log('📱 ¿App ya instalada?:', isInstalled);
+        
         const app = document.getElementById('app');
         app.innerHTML = `
             <div class="header">
@@ -115,9 +133,14 @@ class TransporteApp {
         `;
 
         // Ocultar sección de instalación si ya está instalada
-        if (window.matchMedia('(display-mode: standalone)').matches) {
+        if (isInstalled) {
+            console.log('🔍 App ya está instalada, ocultando sección...');
             this.hideInstallOptions();
+        } else {
+            console.log('🔍 App NO instalada, mostrando sección de instalación');
         }
+        
+        console.log('✅ Interfaz cargada completamente');
     }
 
     async getLocation() {
@@ -139,5 +162,8 @@ class TransporteApp {
 
 // Inicializar la app cuando se cargue el DOM
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('📄 DOM completamente cargado, iniciando app...');
     window.app = new TransporteApp();
 });
+
+console.log('🧩 Script app.js cargado (antes de DOMContentLoaded)');
