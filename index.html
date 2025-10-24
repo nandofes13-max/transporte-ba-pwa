@@ -10,8 +10,25 @@
 </head>
 <body>
     <div id="app">
-        <h1>🚍 Transporte Buenos Aires</h1>
-        <p>Cargando aplicación...</p>
+        <!-- Banner de instalación -->
+        <div id="installBanner" class="install-banner hidden">
+            <div class="install-content">
+                <span>📱 Instalar App Transporte BA</span>
+                <button id="installButton" class="btn-install">Instalar</button>
+            </div>
+        </div>
+
+        <div class="header">
+            <h1>🚍 Transporte Buenos Aires</h1>
+            <p>Tu asistente de transporte público</p>
+        </div>
+
+        <div class="main-content">
+            <button onclick="app.getLocation()" class="btn-primary">
+                📍 Buscar transporte cercano
+            </button>
+            <div id="results" class="results"></div>
+        </div>
     </div>
 
     <script src="js/app.js"></script>
