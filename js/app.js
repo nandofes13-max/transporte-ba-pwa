@@ -40,6 +40,7 @@ class TransporteApp {
         window.addEventListener('appinstalled', (evt) => {
             console.log('🎉 PWA instalada en el dispositivo');
             this.hideInstallBanner();
+            this.hideManualInstall();
             this.deferredPrompt = null;
         });
     }
@@ -54,6 +55,9 @@ class TransporteApp {
             if (header) {
                 header.style.paddingTop = '4rem';
             }
+            
+            // Ocultar el botón manual si el banner está visible
+            this.hideManualInstall();
         }
     }
 
@@ -70,8 +74,30 @@ class TransporteApp {
         }
     }
 
+    showManualInstall() {
+        const manualInstall = document.getElementById('manualInstall');
+        const installBanner = document.getElementById('installBanner');
+    
+        // Solo mostrar manual si el banner automático no está visible
+        // y la PWA no está instalada
+        if (manualInstall && 
+            installBanner.classList.contains('hidden') &&
+            !window.matchMedia('(display-mode: standalone)').matches) {
+            manualInstall.classList.remove('hidden');
+        }
+    }
+
+    hideManualInstall() {
+        const manualInstall = document.getElementById('manualInstall');
+        if (manualInstall) {
+            manualInstall.classList.add('hidden');
+        }
+    }
+
     async installApp() {
         if (!this.deferredPrompt) {
+            // Si no hay prompt diferido, guiar al usuario manualmente
+            this.showInstallInstructions();
             return;
         }
 
@@ -90,12 +116,30 @@ class TransporteApp {
         // Limpiar la referencia
         this.deferredPrompt = null;
         this.hideInstallBanner();
+        this.hideManualInstall();
+    }
+
+    showInstallInstructions() {
+        const results = document.getElementById('results');
+        results.innerHTML = `
+            <div class="install-instructions">
+                <h3>📱 Cómo instalar la App</h3>
+                <p><strong>En Chrome/Edge:</strong> Menú → "Agregar a pantalla de inicio"</p>
+                <p><strong>En Safari:</strong> Compartir → "Agregar a inicio"</p>
+                <button onclick="app.closeInstructions()" class="btn-primary">Entendido</button>
+            </div>
+        `;
+    }
+
+    closeInstructions() {
+        const results = document.getElementById('results');
+        results.innerHTML = '';
     }
 
     loadApp() {
         const app = document.getElementById('app');
         app.innerHTML = `
-            <!-- Banner de instalación -->
+            <!-- Banner de instalación automática -->
             <div id="installBanner" class="install-banner hidden">
                 <div class="install-content">
                     <span>📱 Instalar App Transporte BA</span>
@@ -109,6 +153,13 @@ class TransporteApp {
             </div>
 
             <div class="main-content">
+                <!-- Botón manual de instalación -->
+                <div id="manualInstall" class="manual-install hidden">
+                    <button onclick="app.installApp()" class="btn-install-manual">
+                        📱 Instalar como App
+                    </button>
+                </div>
+
                 <button onclick="app.getLocation()" class="btn-primary">
                     📍 Buscar transporte cercano
                 </button>
@@ -120,6 +171,12 @@ class TransporteApp {
         if (window.matchMedia('(display-mode: standalone)').matches) {
             console.log('📱 La app ya está instalada');
             this.hideInstallBanner();
+            this.hideManualInstall();
+        } else {
+            // Mostrar botón manual después de 3 segundos si no hay banner automático
+            setTimeout(() => {
+                this.showManualInstall();
+            }, 3000);
         }
     }
 
