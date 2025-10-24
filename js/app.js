@@ -35,6 +35,9 @@ class TransporteApp {
             e.preventDefault();
             this.deferredPrompt = e;
             console.log('✅ deferredPrompt guardado');
+            
+            // 🆕 MOSTRAR EL BANNER AUTOMÁTICAMENTE
+            this.showInstallBanner();
         });
 
         // Escuchar cuando la app es instalada
@@ -44,6 +47,15 @@ class TransporteApp {
         });
 
         console.log('📝 Eventos de instalación configurados');
+    }
+
+    showInstallBanner() {
+        console.log('🟠 Mostrando banner de instalación');
+        const installBanner = document.getElementById('installBanner');
+        if (installBanner && this.deferredPrompt) {
+            installBanner.classList.remove('hidden');
+            console.log('✅ Banner de instalación visible');
+        }
     }
 
     hideInstallOptions() {
@@ -109,6 +121,14 @@ class TransporteApp {
         
         const app = document.getElementById('app');
         app.innerHTML = `
+            <!-- Banner de instalación automática -->
+            <div id="installBanner" class="install-banner hidden">
+                <div class="install-content">
+                    <span>📱 Instalar App Transporte BA</span>
+                    <button onclick="app.installApp()" class="btn-install">Instalar</button>
+                </div>
+            </div>
+
             <div class="header">
                 <h1>🚍 Transporte BA</h1>
                 <p>Tu asistente de transporte público</p>
