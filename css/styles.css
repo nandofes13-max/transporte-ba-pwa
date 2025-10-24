@@ -19,11 +19,75 @@ body {
     min-height: 100vh;
 }
 
+/* Banner de instalación */
+.install-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(135deg, #ff9800, #f57c00);
+    color: white;
+    padding: 12px 15px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    z-index: 1000;
+    animation: slideDown 0.3s ease-out;
+}
+
+.install-banner.hidden {
+    display: none;
+}
+
+.install-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.install-content span {
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.btn-install {
+    background: white;
+    color: #f57c00;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.85rem;
+}
+
+.btn-install:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(255,255,255,0.3);
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Ajustar el header para cuando el banner está visible */
 .header {
     text-align: center;
     color: white;
     margin-bottom: 2rem;
     padding-top: 1rem;
+}
+
+.install-banner:not(.hidden) + .header {
+    padding-top: 4rem; /* Espacio para el banner */
 }
 
 .header h1 {
@@ -101,6 +165,14 @@ body {
     
     .main-content {
         padding: 1.5rem;
+    }
+    
+    .install-content {
+        padding: 0 10px;
+    }
+    
+    .install-content span {
+        font-size: 0.9rem;
     }
 }
 
