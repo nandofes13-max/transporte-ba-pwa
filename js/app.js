@@ -1,4 +1,4 @@
-// js/app.js - Con detección de app instalada
+// js/app.js - Con detección de desktop
 class TransporteApp {
     constructor() {
         this.map = null;
@@ -12,6 +12,7 @@ class TransporteApp {
         console.log('🔍 [INIT] App iniciada');
         console.log('🔍 [INIT] Service Worker support:', 'serviceWorker' in navigator);
         console.log('🔍 [INIT] App instalada:', this.isAppInstalled());
+        console.log('🔍 [INIT] Es desktop:', this.isDesktop());
         
         // Configurar eventos de instalación PWA
         this.setupInstallPrompt();
@@ -30,7 +31,17 @@ class TransporteApp {
         this.loadApp();
     }
 
-    // 🆕 FUNCIÓN PARA DETECTAR SI LA APP ESTÁ INSTALADA
+    // 🆕 FUNCIÓN PARA DETECTAR SI ES DESKTOP
+    isDesktop() {
+        const userAgent = navigator.userAgent.toLowerCase();
+        const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+        const isTablet = /(tablet|ipad|playbook|silk)|(android(?!.*mobile))/i.test(userAgent);
+        
+        console.log('🔍 [DEVICE] Mobile:', isMobile, 'Tablet:', isTablet, 'Desktop:', !isMobile && !isTablet);
+        return !isMobile && !isTablet;
+    }
+
+    // FUNCIÓN PARA DETECTAR SI LA APP ESTÁ INSTALADA
     isAppInstalled() {
         // Método 1: Verificar display-mode (estándar PWA)
         if (window.matchMedia('(display-mode: standalone)').matches) {
@@ -72,9 +83,15 @@ class TransporteApp {
     loadApp() {
         console.log('🔍 [LOAD] Cargando aplicación con mapa...');
         
-        // 🆕 VERIFICAR SI LA APP YA ESTÁ INSTALADA
+        // VERIFICAR SI LA APP YA ESTÁ INSTALADA
         if (this.isAppInstalled()) {
             console.log('📱 [APP] La app ya está instalada - ocultando botón de instalación');
+            this.hideInstallButton();
+        }
+        
+        // 🆕 VERIFICAR SI ES DESKTOP (Chrome mostrará ícono en barra)
+        if (this.isDesktop()) {
+            console.log('💻 [DESKTOP] Modo desktop detectado - ocultando botón de instalación');
             this.hideInstallButton();
         }
         
