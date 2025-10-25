@@ -364,3 +364,8 @@ body {
 .hidden {
     display: none !important;
 }
+
+/* Ocultar botón de instalación por defecto - se muestra via JS si es necesario */
+#installBtn.initial-hide {
+    display: none;
+}
