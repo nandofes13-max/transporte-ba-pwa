@@ -179,16 +179,9 @@ class TransporteApp {
     }
 
     // 🆕 FUNCIÓN PARA INSTRUCCIONES DE INSTALACIÓN MANUAL
-    showInstallInstructions() {
-        alert('Para instalar la aplicación:\n\n' +
-              'En Chrome/Edge:\n' +
-              '1. Menú (⋮) → "Agregar a pantalla de inicio"\n' +
-              '2. Confirmar "Agregar"\n\n' +
-              'En Safari:\n' + 
-              '1. Botón compartir (📤) → "Agregar a inicio"\n' +
-              '2. Click "Agregar"');
-    }
-
+   showInstallInstructions() {
+    alert('Para una mejor experiencia utilice el navegador Google Chrome');
+}
     hideInstallButton() {
         console.log('🔍 [HIDE] Intentando ocultar botón de instalación');
         const installBtn = document.getElementById('installBtn');
