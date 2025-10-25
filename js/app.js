@@ -73,7 +73,7 @@ class TransporteApp {
             this.deferredPrompt = e;
             console.log('🔍 [PWA] deferredPrompt guardado:', !!this.deferredPrompt);
             
-            // 🆕 MOSTRAR BOTÓN SOLO SI ES MÓVIL Y NO INSTALADA
+            // MOSTRAR BOTÓN SOLO SI ES MÓVIL Y NO INSTALADA
             this.showInstallButtonIfNeeded();
         });
 
@@ -86,7 +86,7 @@ class TransporteApp {
     loadApp() {
         console.log('🔍 [LOAD] Cargando aplicación con mapa...');
         
-        // 🆕 EL BOTÓN ESTÁ OCULTO POR CSS - SOLO SE MUESTRA SI ES NECESARIO
+        // EL BOTÓN ESTÁ OCULTO POR CSS - SOLO SE MUESTRA SI ES NECESARIO
         this.showInstallButtonIfNeeded();
         
         // Inicializar el mapa inmediatamente
@@ -98,7 +98,7 @@ class TransporteApp {
         console.log('🔍 [LOAD] App cargada completamente');
     }
 
-    // 🆕 FUNCIÓN PARA MOSTRAR BOTÓN SOLO SI ES NECESARIO
+    // FUNCIÓN PARA MOSTRAR BOTÓN SOLO SI ES NECESARIO
     showInstallButtonIfNeeded() {
         const installBtn = document.getElementById('installBtn');
         if (!installBtn) return;
@@ -111,10 +111,10 @@ class TransporteApp {
                    'deferredPrompt:', !!this.deferredPrompt);
         
         if (shouldShow) {
-            installBtn.classList.remove('initial-hide');
+            installBtn.classList.add('visible');
             console.log('✅ [SHOW-BTN] Botón mostrado');
         } else {
-            installBtn.classList.add('initial-hide');
+            installBtn.classList.remove('visible');
             console.log('🚫 [SHOW-BTN] Botón ocultado');
         }
     }
@@ -192,8 +192,7 @@ class TransporteApp {
         console.log('🔍 [HIDE] Botón encontrado:', !!installBtn);
         
         if (installBtn) {
-            console.log('🔍 [HIDE] Estilo actual del botón:', installBtn.style.display);
-            installBtn.classList.add('initial-hide');
+            installBtn.classList.remove('visible');
             console.log('✅ [HIDE] Botón ocultado via CSS class');
         } else {
             console.log('❌ [HIDE] No se encontró el botón installBtn');
@@ -239,7 +238,7 @@ class TransporteApp {
         }
     }
 
-    // 🆕 FUNCIÓN DE FALLBACK POR IP
+    // FUNCIÓN DE FALLBACK POR IP
     async useIPGeolocationFallback() {
         console.log('🌐 [LOCATION] Usando geolocalización por IP...');
         
@@ -266,7 +265,7 @@ class TransporteApp {
         }
     }
 
-    // 🆕 FUNCIÓN PARA CENTRAR MAPA (reutilizable)
+    // FUNCIÓN PARA CENTRAR MAPA (reutilizable)
     centerMapOnLocation(lat, lng) {
         this.map.setView([lat, lng], 15);
         
