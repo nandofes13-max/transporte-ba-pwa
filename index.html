@@ -6,31 +6,46 @@
     <title>Transporte BA - PWA</title>
     <meta name="theme-color" content="#0d47a1">
     <link rel="manifest" href="manifest.json">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Nuestros estilos -->
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
     <div id="app">
-        <!-- Banner de instalación -->
-        <div id="installBanner" class="install-banner hidden">
-            <div class="install-content">
-                <span>📱 Instalar App Transporte BA</span>
-                <button id="installButton" class="btn-install">Instalar</button>
+        <!-- Mapa Container -->
+        <div id="map-container" class="map-container">
+            <div id="map"></div>
+            <div class="map-overlay">
+                <div class="header">
+                    <h1>🚍 Transporte BA</h1>
+                    <p>Tu ubicación en el mapa</p>
+                </div>
+                
+                <div class="map-controls">
+                    <button id="locateBtn" class="btn-primary">
+                        📍 Centrar en mi ubicación
+                    </button>
+                    <button id="transportBtn" class="btn-secondary">
+                        🚍 Buscar transporte
+                    </button>
+                    <button id="installBtn" class="btn-install">
+                        📱 Instalar App
+                    </button>
+                </div>
             </div>
         </div>
 
-        <div class="header">
-            <h1>🚍 Transporte Buenos Aires</h1>
-            <p>Tu asistente de transporte público</p>
-        </div>
-
-        <div class="main-content">
-            <button onclick="app.getLocation()" class="btn-primary">
-                📍 Buscar transporte cercano
-            </button>
-            <div id="results" class="results"></div>
+        <!-- Container para funcionalidad de transporte (oculto inicialmente) -->
+        <div id="transport-container" class="transport-container hidden">
+            <!-- Aquí va el contenido actual de búsqueda de transporte -->
         </div>
     </div>
 
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
