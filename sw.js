@@ -1,21 +1,19 @@
-// sw.js - Service Worker actualizado (v4)
-const CACHE_NAME = 'transporte-ba-v4';  // 🆕 CAMBIADO a v4
+// sw.js - Service Worker que NO cachea archivos críticos
+const CACHE_NAME = 'transporte-ba-v6';
+
+// Solo cachear íconos y manifest
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/css/styles.css',
-  '/js/app.js',
-  '/manifest.json',
   '/icons/icon-192.svg',
-  '/icons/icon-512.svg'
+  '/icons/icon-512.svg',
+  '/manifest.json'
 ];
 
 self.addEventListener('install', event => {
-  console.log('✅ Service Worker v4: Instalando...');
+  console.log('✅ Service Worker v6: Instalando (cache mínimo)');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('✅ Service Worker v4: Cacheando archivos esenciales');
+        console.log('✅ Cacheando solo íconos');
         return cache.addAll(urlsToCache);
       })
       .then(() => self.skipWaiting())
@@ -23,7 +21,7 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('activate', event => {
-  console.log('✅ Service Worker v4: Activado y listo');
+  console.log('✅ Service Worker v6: Activado');
   event.waitUntil(
     caches.keys().then(cacheNames => {
       return Promise.all(
@@ -39,15 +37,17 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
+  // 🆕 NO cachear archivos HTML, CSS, JS - siempre ir a red
+  if (event.request.url.match(/\.(js|css|html|json)$/) || event.request.url === 'https://transporte-ba-pwa.onrender.com/') {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+  
+  // Solo cachear íconos
   event.respondWith(
     caches.match(event.request)
       .then(response => {
         return response || fetch(event.request);
-      })
-      .catch(() => {
-        if (event.request.destination === 'document') {
-          return caches.match('/index.html');
-        }
       })
   );
 });
