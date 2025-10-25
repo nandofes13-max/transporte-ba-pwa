@@ -1,11 +1,11 @@
 {
-  "name": "Transporte BA",
-  "short_name": "TransBA",
+  "name": "PWA-BA",
+  "short_name": "PWA-BA",
   "description": "Aplicación de transporte público de Buenos Aires",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0d47a1",
-  "theme_color": "#0d47a1",
+  "theme_color": "#ff9800",
   "orientation": "portrait",
   "icons": [
     {
