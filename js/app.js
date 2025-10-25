@@ -1,4 +1,4 @@
-// js/app.js - Con detección de desktop
+// js/app.js - Con mejoras de botón y geolocalización
 class TransporteApp {
     constructor() {
         this.map = null;
@@ -31,7 +31,7 @@ class TransporteApp {
         this.loadApp();
     }
 
-    // 🆕 FUNCIÓN PARA DETECTAR SI ES DESKTOP
+    // FUNCIÓN PARA DETECTAR SI ES DESKTOP
     isDesktop() {
         const userAgent = navigator.userAgent.toLowerCase();
         const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
@@ -72,6 +72,9 @@ class TransporteApp {
             e.preventDefault();
             this.deferredPrompt = e;
             console.log('🔍 [PWA] deferredPrompt guardado:', !!this.deferredPrompt);
+            
+            // 🆕 MOSTRAR BOTÓN SOLO SI ES MÓVIL Y NO INSTALADA
+            this.showInstallButtonIfNeeded();
         });
 
         window.addEventListener('appinstalled', (evt) => {
@@ -83,17 +86,8 @@ class TransporteApp {
     loadApp() {
         console.log('🔍 [LOAD] Cargando aplicación con mapa...');
         
-        // VERIFICAR SI LA APP YA ESTÁ INSTALADA
-        if (this.isAppInstalled()) {
-            console.log('📱 [APP] La app ya está instalada - ocultando botón de instalación');
-            this.hideInstallButton();
-        }
-        
-        // 🆕 VERIFICAR SI ES DESKTOP (Chrome mostrará ícono en barra)
-        if (this.isDesktop()) {
-            console.log('💻 [DESKTOP] Modo desktop detectado - ocultando botón de instalación');
-            this.hideInstallButton();
-        }
+        // 🆕 EL BOTÓN ESTÁ OCULTO POR CSS - SOLO SE MUESTRA SI ES NECESARIO
+        this.showInstallButtonIfNeeded();
         
         // Inicializar el mapa inmediatamente
         this.initMap();
@@ -102,6 +96,27 @@ class TransporteApp {
         this.setupEventListeners();
         
         console.log('🔍 [LOAD] App cargada completamente');
+    }
+
+    // 🆕 FUNCIÓN PARA MOSTRAR BOTÓN SOLO SI ES NECESARIO
+    showInstallButtonIfNeeded() {
+        const installBtn = document.getElementById('installBtn');
+        if (!installBtn) return;
+        
+        const shouldShow = !this.isAppInstalled() && !this.isDesktop() && this.deferredPrompt;
+        
+        console.log('🔍 [SHOW-BTN] Mostrar botón?:', shouldShow, 
+                   'Instalada:', this.isAppInstalled(), 
+                   'Desktop:', this.isDesktop(), 
+                   'deferredPrompt:', !!this.deferredPrompt);
+        
+        if (shouldShow) {
+            installBtn.classList.remove('initial-hide');
+            console.log('✅ [SHOW-BTN] Botón mostrado');
+        } else {
+            installBtn.classList.add('initial-hide');
+            console.log('🚫 [SHOW-BTN] Botón ocultado');
+        }
     }
 
     initMap() {
@@ -178,9 +193,8 @@ class TransporteApp {
         
         if (installBtn) {
             console.log('🔍 [HIDE] Estilo actual del botón:', installBtn.style.display);
-            installBtn.style.display = 'none';
-            console.log('🔍 [HIDE] Estilo después de ocultar:', installBtn.style.display);
-            console.log('✅ [HIDE] Botón ocultado');
+            installBtn.classList.add('initial-hide');
+            console.log('✅ [HIDE] Botón ocultado via CSS class');
         } else {
             console.log('❌ [HIDE] No se encontró el botón installBtn');
         }
@@ -193,33 +207,76 @@ class TransporteApp {
         locateBtn.disabled = true;
 
         try {
+            // PRIMERO: Intentar GPS de alta precisión
             const position = await this.getCurrentPosition();
-            const { latitude, longitude } = position.coords;
+            const { latitude, longitude, accuracy } = position.coords;
             
-            console.log('📍 [LOCATION] Ubicación obtenida:', latitude, longitude);
-            this.userLocation = { lat: latitude, lng: longitude };
+            console.log('📍 [LOCATION] GPS obtenido:', latitude, longitude, 'Precisión:', accuracy, 'm');
             
-            this.map.setView([latitude, longitude], 15);
-            
-            if (this.userMarker) {
-                this.userMarker.setLatLng([latitude, longitude]);
+            // Si la precisión es mala (>1000m), usar fallback
+            if (accuracy > 1000) {
+                console.log('⚠️ [LOCATION] Precisión GPS pobre, usando fallback...');
+                await this.useIPGeolocationFallback();
             } else {
-                this.userMarker = L.marker([latitude, longitude])
-                    .addTo(this.map)
-                    .bindPopup('📍 Tu ubicación actual')
-                    .openPopup();
+                this.userLocation = { lat: latitude, lng: longitude };
+                this.centerMapOnLocation(latitude, longitude);
+                console.log('✅ [LOCATION] Ubicación GPS centrada');
             }
             
-            locateBtn.innerHTML = '📍 Centrar en mi ubicación';
-            locateBtn.disabled = false;
-            console.log('✅ [LOCATION] Ubicación centrada en mapa');
-            
         } catch (error) {
-            console.error('❌ [LOCATION] Error obteniendo ubicación:', error);
-            this.handleLocationError(error);
+            console.error('❌ [LOCATION] Error GPS:', error);
             
+            // FALLBACK: Usar geolocalización por IP
+            try {
+                await this.useIPGeolocationFallback();
+            } catch (ipError) {
+                console.error('❌ [LOCATION] Error fallback IP:', ipError);
+                this.handleLocationError(error);
+            }
+        } finally {
             locateBtn.innerHTML = '📍 Centrar en mi ubicación';
             locateBtn.disabled = false;
+        }
+    }
+
+    // 🆕 FUNCIÓN DE FALLBACK POR IP
+    async useIPGeolocationFallback() {
+        console.log('🌐 [LOCATION] Usando geolocalización por IP...');
+        
+        try {
+            const response = await fetch('https://ipapi.co/json/');
+            if (!response.ok) throw new Error('Error en API IP');
+            
+            const data = await response.json();
+            console.log('📍 [LOCATION] IP geolocation:', data);
+            
+            if (data.latitude && data.longitude) {
+                this.userLocation = { lat: data.latitude, lng: data.longitude };
+                this.centerMapOnLocation(data.latitude, data.longitude);
+                console.log('✅ [LOCATION] Ubicación por IP centrada');
+            } else {
+                throw new Error('No se pudo obtener ubicación por IP');
+            }
+        } catch (error) {
+            // ÚLTIMO FALLBACK: Buenos Aires centro
+            console.log('🏙️ [LOCATION] Usando ubicación por defecto (Buenos Aires)');
+            this.userLocation = { lat: -34.6037, lng: -58.3816 };
+            this.centerMapOnLocation(-34.6037, -58.3816);
+            console.log('✅ [LOCATION] Ubicación por defecto centrada');
+        }
+    }
+
+    // 🆕 FUNCIÓN PARA CENTRAR MAPA (reutilizable)
+    centerMapOnLocation(lat, lng) {
+        this.map.setView([lat, lng], 15);
+        
+        if (this.userMarker) {
+            this.userMarker.setLatLng([lat, lng]);
+        } else {
+            this.userMarker = L.marker([lat, lng])
+                .addTo(this.map)
+                .bindPopup('📍 Tu ubicación actual')
+                .openPopup();
         }
     }
 
@@ -232,7 +289,7 @@ class TransporteApp {
 
             navigator.geolocation.getCurrentPosition(resolve, reject, {
                 enableHighAccuracy: true,
-                timeout: 15000,
+                timeout: 10000,
                 maximumAge: 60000
             });
         });
