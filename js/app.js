@@ -1,4 +1,4 @@
-// js/app.js - Con mejoras de botón y geolocalización
+// js/app.js - Con botón visible en móviles no-Chrome
 class TransporteApp {
     constructor() {
         this.map = null;
@@ -72,9 +72,6 @@ class TransporteApp {
             e.preventDefault();
             this.deferredPrompt = e;
             console.log('🔍 [PWA] deferredPrompt guardado:', !!this.deferredPrompt);
-            
-            // MOSTRAR BOTÓN SOLO SI ES MÓVIL Y NO INSTALADA
-            this.showInstallButtonIfNeeded();
         });
 
         window.addEventListener('appinstalled', (evt) => {
@@ -103,12 +100,12 @@ class TransporteApp {
         const installBtn = document.getElementById('installBtn');
         if (!installBtn) return;
         
-        const shouldShow = !this.isAppInstalled() && !this.isDesktop() && this.deferredPrompt;
+        // 🆕 MOSTRAR EN MÓVILES AUNQUE NO SEA CHROME
+        const shouldShow = !this.isAppInstalled() && !this.isDesktop();
         
         console.log('🔍 [SHOW-BTN] Mostrar botón?:', shouldShow, 
                    'Instalada:', this.isAppInstalled(), 
-                   'Desktop:', this.isDesktop(), 
-                   'deferredPrompt:', !!this.deferredPrompt);
+                   'Desktop:', this.isDesktop());
         
         if (shouldShow) {
             installBtn.classList.add('visible');
@@ -174,16 +171,22 @@ class TransporteApp {
             console.log('🔍 [INSTALL] deferredPrompt limpiado');
         }
         
-        // Si llegamos aquí, la instalación automática falló
-        console.log('🔍 [INSTALL] Mostrando mensaje de Chrome...');
-        this.showChromeMessage();
+        // 🆕 SI NO HAY DEFERREDPROMPT, MOSTRAR INSTRUCCIONES DE INSTALACIÓN MANUAL
+        console.log('🔍 [INSTALL] Mostrando instrucciones de instalación manual...');
+        this.showInstallInstructions();
         console.log('🔍 [INSTALL] Ocultando botón...');
         this.hideInstallButton();
     }
 
-    showChromeMessage() {
-        console.log('🔍 [ALERT] Mostrando alerta de Chrome');
-        alert('Por favor utiliza Google Chrome para una mejor experiencia');
+    // 🆕 FUNCIÓN PARA INSTRUCCIONES DE INSTALACIÓN MANUAL
+    showInstallInstructions() {
+        alert('Para instalar la aplicación:\n\n' +
+              'En Chrome/Edge:\n' +
+              '1. Menú (⋮) → "Agregar a pantalla de inicio"\n' +
+              '2. Confirmar "Agregar"\n\n' +
+              'En Safari:\n' + 
+              '1. Botón compartir (📤) → "Agregar a inicio"\n' +
+              '2. Click "Agregar"');
     }
 
     hideInstallButton() {
