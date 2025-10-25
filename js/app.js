@@ -1,15 +1,21 @@
-// js/app.js - Frontend actualizado para usar el backend
+// js/app.js - Frontend con mapa OpenStreetMap
 class TransporteApp {
     constructor() {
         this.backendURL = 'https://transporte-ba-pwa.onrender.com';
+        this.map = null;
+        this.userMarker = null;
+        this.userLocation = null;
+        this.deferredPrompt = null;
         this.init();
     }
 
     async init() {
         console.log('🚍 Transporte BA PWA iniciada');
-        console.log('📍 Backend URL:', this.backendURL);
         
-        // Verificar si el navegador soporta PWA
+        // Configurar eventos de instalación PWA
+        this.setupInstallPrompt();
+        
+        // Verificar Service Worker
         if ('serviceWorker' in navigator) {
             try {
                 await navigator.serviceWorker.register('/sw.js');
@@ -19,43 +25,100 @@ class TransporteApp {
             }
         }
 
+        // Inicializar la aplicación
         this.loadApp();
     }
 
-    loadApp() {
-        const app = document.getElementById('app');
-        app.innerHTML = `
-            <div class="header">
-                <h1>🚍 Transporte BA</h1>
-                <p>Tu asistente de transporte público</p>
-            </div>
+    setupInstallPrompt() {
+        window.addEventListener('beforeinstallprompt', (e) => {
+            console.log('🎯 PWA lista para instalación');
+            e.preventDefault();
+            this.deferredPrompt = e;
+        });
 
-            <div class="main-content">
-                <button onclick="app.getLocation()" class="btn-primary">
-                    📍 Buscar transporte cercano
-                </button>
-                <div id="results" class="results"></div>
-            </div>
-        `;
+        window.addEventListener('appinstalled', (evt) => {
+            console.log('🎉 PWA instalada en el dispositivo');
+            this.hideInstallButton();
+        });
     }
 
-    async getLocation() {
-        const results = document.getElementById('results');
-        results.innerHTML = '<div class="loading">📍 Obteniendo ubicación...</div>';
+    loadApp() {
+        console.log('🗺️ Cargando aplicación con mapa...');
+        
+        // Inicializar el mapa inmediatamente
+        this.initMap();
+        
+        // Configurar event listeners
+        this.setupEventListeners();
+        
+        // Obtener y centrar en la ubicación del usuario
+        this.centerOnUserLocation();
+    }
+
+    initMap() {
+        // Inicializar el mapa de OpenStreetMap
+        this.map = L.map('map').setView([-34.6037, -58.3816], 13); // Buenos Aires por defecto
+
+        // Capa de OpenStreetMap
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 18
+        }).addTo(this.map);
+
+        console.log('🗺️ Mapa inicializado');
+    }
+
+    setupEventListeners() {
+        // Botón de centrar en ubicación
+        document.getElementById('locateBtn').addEventListener('click', () => {
+            this.centerOnUserLocation();
+        });
+
+        // Botón de buscar transporte
+        document.getElementById('transportBtn').addEventListener('click', () => {
+            this.showTransportSearch();
+        });
+
+        // Botón de instalar app
+        document.getElementById('installBtn').addEventListener('click', () => {
+            this.installApp();
+        });
+    }
+
+    async centerOnUserLocation() {
+        const locateBtn = document.getElementById('locateBtn');
+        locateBtn.innerHTML = '📍 Obteniendo ubicación...';
+        locateBtn.disabled = true;
 
         try {
-            // Obtener ubicación del usuario
             const position = await this.getCurrentPosition();
             const { latitude, longitude } = position.coords;
             
             console.log('📍 Ubicación obtenida:', latitude, longitude);
+            this.userLocation = { lat: latitude, lng: longitude };
             
-            // Buscar paradas cercanas en el backend
-            await this.buscarParadasCercanas(latitude, longitude);
+            // Centrar mapa en la ubicación del usuario
+            this.map.setView([latitude, longitude], 15);
+            
+            // Agregar o actualizar marcador
+            if (this.userMarker) {
+                this.userMarker.setLatLng([latitude, longitude]);
+            } else {
+                this.userMarker = L.marker([latitude, longitude])
+                    .addTo(this.map)
+                    .bindPopup('📍 Tu ubicación actual')
+                    .openPopup();
+            }
+            
+            locateBtn.innerHTML = '📍 Centrar en mi ubicación';
+            locateBtn.disabled = false;
             
         } catch (error) {
-            console.error('❌ Error:', error);
+            console.error('❌ Error obteniendo ubicación:', error);
             this.handleLocationError(error);
+            
+            locateBtn.innerHTML = '📍 Centrar en mi ubicación';
+            locateBtn.disabled = false;
         }
     }
 
@@ -68,20 +131,63 @@ class TransporteApp {
 
             navigator.geolocation.getCurrentPosition(resolve, reject, {
                 enableHighAccuracy: true,
-                timeout: 10000,
+                timeout: 15000,
                 maximumAge: 60000
             });
         });
     }
 
-    async buscarParadasCercanas(lat, lng) {
-        const results = document.getElementById('results');
-        results.innerHTML = '<div class="loading">🔍 Buscando paradas cercanas...</div>';
+    showTransportSearch() {
+        if (!this.userLocation) {
+            alert('Primero necesitamos obtener tu ubicación para buscar transporte cercano.');
+            this.centerOnUserLocation();
+            return;
+        }
+
+        // Ocultar mapa y mostrar interfaz de transporte
+        document.getElementById('map-container').classList.add('hidden');
+        document.getElementById('transport-container').classList.remove('hidden');
+        
+        // Cargar la interfaz de transporte
+        this.loadTransportInterface();
+    }
+
+    loadTransportInterface() {
+        const transportContainer = document.getElementById('transport-container');
+        transportContainer.innerHTML = `
+            <div class="transport-header">
+                <button onclick="app.showMap()" class="btn-back">←</button>
+                <h2>🚍 Buscar Transporte</h2>
+            </div>
+            
+            <div class="main-content">
+                <button onclick="app.buscarTransporteCercano()" class="btn-primary">
+                    🔍 Buscar transporte cercano
+                </button>
+                <div id="transport-results" class="results"></div>
+            </div>
+        `;
+    }
+
+    showMap() {
+        // Volver al mapa
+        document.getElementById('transport-container').classList.add('hidden');
+        document.getElementById('map-container').classList.remove('hidden');
+    }
+
+    async buscarTransporteCercano() {
+        if (!this.userLocation) {
+            alert('No tenemos tu ubicación. Centrando en tu ubicación...');
+            await this.centerOnUserLocation();
+            return;
+        }
+
+        const results = document.getElementById('transport-results');
+        results.innerHTML = '<div class="loading">🔍 Buscando transporte cercano...</div>';
 
         try {
-            // Llamar a TU backend
             const response = await fetch(
-                `${this.backendURL}/api/paradas-cercanas?lat=${lat}&lng=${lng}&radio=1`
+                `${this.backendURL}/api/paradas-cercanas?lat=${this.userLocation.lat}&lng=${this.userLocation.lng}&radio=1`
             );
 
             if (!response.ok) {
@@ -89,24 +195,22 @@ class TransporteApp {
             }
 
             const data = await response.json();
-            console.log('🚍 Datos recibidos:', data);
-            
-            this.mostrarParadas(data);
+            this.mostrarResultadosTransporte(data);
             
         } catch (error) {
-            console.error('❌ Error buscando paradas:', error);
+            console.error('❌ Error buscando transporte:', error);
             results.innerHTML = `
                 <div class="error">
                     <h3>❌ Error de conexión</h3>
                     <p>No se pudieron cargar las paradas. Intenta nuevamente.</p>
-                    <button onclick="app.getLocation()" class="btn-primary">Reintentar</button>
+                    <button onclick="app.buscarTransporteCercano()" class="btn-primary">Reintentar</button>
                 </div>
             `;
         }
     }
 
-    mostrarParadas(data) {
-        const results = document.getElementById('results');
+    mostrarResultadosTransporte(data) {
+        const results = document.getElementById('transport-results');
         
         if (!data.paradas || data.paradas.length === 0) {
             results.innerHTML = `
@@ -120,7 +224,7 @@ class TransporteApp {
 
         let html = `
             <div class="ubicacion-info">
-                <h3>📍 Ubicación actual</h3>
+                <h3>📍 Tu ubicación</h3>
                 <p>Lat: ${data.ubicacion.lat.toFixed(4)}, Lng: ${data.ubicacion.lng.toFixed(4)}</p>
                 <p>Radio: ${data.radio} km</p>
             </div>
@@ -146,7 +250,7 @@ class TransporteApp {
     }
 
     async verTiemposLlegada(paradaId) {
-        const results = document.getElementById('results');
+        const results = document.getElementById('transport-results');
         results.innerHTML = '<div class="loading">⏱️ Consultando tiempos de llegada...</div>';
 
         try {
@@ -176,7 +280,7 @@ class TransporteApp {
     mostrarTiemposLlegada(data) {
         let html = `
             <div class="tiempos-header">
-                <button onclick="app.getLocation()" class="btn-back">← Volver</button>
+                <button onclick="app.buscarTransporteCercano()" class="btn-back">← Volver</button>
                 <h3>⏱️ Tiempos de llegada</h3>
                 <p>Parada: ${data.paradaId}</p>
             </div>
@@ -195,17 +299,55 @@ class TransporteApp {
         });
 
         html += `</div>`;
-        document.getElementById('results').innerHTML = html;
+        document.getElementById('transport-results').innerHTML = html;
+    }
+
+    async installApp() {
+        if (this.deferredPrompt) {
+            try {
+                this.deferredPrompt.prompt();
+                const { outcome } = await this.deferredPrompt.userChoice;
+                
+                if (outcome === 'accepted') {
+                    console.log('✅ Usuario aceptó instalar la PWA');
+                    this.hideInstallButton();
+                } else {
+                    console.log('❌ Usuario rechazó instalar la PWA');
+                }
+                
+                this.deferredPrompt = null;
+            } catch (error) {
+                console.error('❌ Error en instalación:', error);
+                this.showInstallInstructions();
+            }
+        } else {
+            this.showInstallInstructions();
+        }
+    }
+
+    hideInstallButton() {
+        const installBtn = document.getElementById('installBtn');
+        installBtn.style.display = 'none';
+    }
+
+    showInstallInstructions() {
+        alert(`📱 Para instalar la App:
+
+Chrome/Edge en Android:
+1. Menú (⋮) → "Agregar a pantalla de inicio"
+2. Confirmar "Agregar"
+
+Safari en iPhone:
+1. Botón compartir (📤) → "Agregar a inicio"
+2. Click "Agregar" en la esquina superior derecha`);
     }
 
     handleLocationError(error) {
-        const results = document.getElementById('results');
-        
         let message = 'Error desconocido al obtener la ubicación';
         
         switch(error.code) {
             case error.PERMISSION_DENIED:
-                message = 'Permiso de ubicación denegado. Permite el acceso a la ubicación para usar esta función.';
+                message = 'Permiso de ubicación denegado. Permite el acceso a la ubicación para usar el mapa.';
                 break;
             case error.POSITION_UNAVAILABLE:
                 message = 'Información de ubicación no disponible.';
@@ -215,13 +357,7 @@ class TransporteApp {
                 break;
         }
 
-        results.innerHTML = `
-            <div class="error">
-                <h3>❌ Error de ubicación</h3>
-                <p>${message}</p>
-                <button onclick="app.getLocation()" class="btn-primary">Intentar nuevamente</button>
-            </div>
-        `;
+        alert(`❌ Error de ubicación: ${message}`);
     }
 }
 
