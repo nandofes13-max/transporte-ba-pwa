@@ -159,7 +159,7 @@ class TransporteApp {
     }
 
     showChromeMessage() {
-        alert('📱 Por favor utiliza Google Chrome para una mejor experiencia y instalación de la aplicación.');
+        alert('📱 Por favor utiliza Google Chrome para una mejor experiencia.');
     }
 
     handleLocationError(error) {
