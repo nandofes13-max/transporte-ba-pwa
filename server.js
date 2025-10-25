@@ -2,6 +2,7 @@
 const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -9,6 +10,18 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// 🆕 MIDDLEWARE PARA CONTROL DE CACHE
+app.use((req, res, next) => {
+  // Headers para evitar cache en archivos críticos
+  if (req.path.match(/\.(js|css|html|json|svg)$/) || req.path === '/') {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    console.log('🚫 Cache deshabilitado para:', req.path);
+  }
+  next();
+});
 
 // Servir archivos estáticos del frontend
 app.use(express.static('.'));
@@ -18,7 +31,8 @@ app.get('/health', (req, res) => {
   res.json({ 
     message: '🚍 Backend Transporte BA funcionando',
     status: 'OK',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    version: '1.0.1'
   });
 });
 
@@ -114,11 +128,12 @@ app.get('/api/tiempos-llegada/:paradaId', async (req, res) => {
 
 // Ruta de fallback para SPA
 app.get('*', (req, res) => {
-  res.sendFile(__dirname + '/index.html');
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor backend corriendo en puerto ${PORT}`);
   console.log(`📍 Health check: http://localhost:${PORT}/health`);
   console.log(`🌐 Frontend: http://localhost:${PORT}/`);
+  console.log(`🚫 Cache control activado para archivos estáticos`);
 });
