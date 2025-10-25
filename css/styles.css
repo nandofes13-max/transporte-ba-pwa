@@ -52,6 +52,16 @@ body {
     pointer-events: auto;
 }
 
+/* OCULTAR BOTÓN INMEDIATAMENTE - se muestra via JS si es necesario */
+#installBtn {
+    display: none !important;
+}
+
+/* Mostrar solo cuando JS lo active */
+#installBtn.visible {
+    display: inline-block !important;
+}
+
 /* Botones ajustados al texto */
 .btn-primary {
     background: linear-gradient(135deg, #0d47a1, #1976d2);
@@ -363,9 +373,4 @@ body {
 
 .hidden {
     display: none !important;
-}
-
-/* Ocultar botón de instalación por defecto - se muestra via JS si es necesario */
-#installBtn.initial-hide {
-    display: none;
 }
