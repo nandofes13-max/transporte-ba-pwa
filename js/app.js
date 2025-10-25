@@ -1,4 +1,4 @@
-// js/app.js - Versión con logs de diagnóstico
+// js/app.js - Con detección de app instalada
 class TransporteApp {
     constructor() {
         this.map = null;
@@ -11,6 +11,7 @@ class TransporteApp {
     async init() {
         console.log('🔍 [INIT] App iniciada');
         console.log('🔍 [INIT] Service Worker support:', 'serviceWorker' in navigator);
+        console.log('🔍 [INIT] App instalada:', this.isAppInstalled());
         
         // Configurar eventos de instalación PWA
         this.setupInstallPrompt();
@@ -27,6 +28,29 @@ class TransporteApp {
 
         // Inicializar la aplicación
         this.loadApp();
+    }
+
+    // 🆕 FUNCIÓN PARA DETECTAR SI LA APP ESTÁ INSTALADA
+    isAppInstalled() {
+        // Método 1: Verificar display-mode (estándar PWA)
+        if (window.matchMedia('(display-mode: standalone)').matches) {
+            console.log('📱 [DETECT] App detectada por display-mode: standalone');
+            return true;
+        }
+        
+        // Método 2: iOS Safari
+        if (window.navigator.standalone) {
+            console.log('📱 [DETECT] App detectada por navigator.standalone');
+            return true;
+        }
+        
+        // Método 3: Android Chrome
+        if (document.referrer.includes('android-app://')) {
+            console.log('📱 [DETECT] App detectada por referrer android');
+            return true;
+        }
+        
+        return false;
     }
 
     setupInstallPrompt() {
@@ -47,6 +71,12 @@ class TransporteApp {
 
     loadApp() {
         console.log('🔍 [LOAD] Cargando aplicación con mapa...');
+        
+        // 🆕 VERIFICAR SI LA APP YA ESTÁ INSTALADA
+        if (this.isAppInstalled()) {
+            console.log('📱 [APP] La app ya está instalada - ocultando botón de instalación');
+            this.hideInstallButton();
+        }
         
         // Inicializar el mapa inmediatamente
         this.initMap();
