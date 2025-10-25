@@ -1,4 +1,4 @@
-/* css/styles.css - Estilos para la PWA de Transporte */
+/* css/styles.css - Estilos actualizados para Transporte BA */
 * {
     margin: 0;
     padding: 0;
@@ -19,146 +19,11 @@ body {
     min-height: 100vh;
 }
 
-/* Banner de instalación */
-.install-banner {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    background: linear-gradient(135deg, #ff9800, #f57c00);
-    color: white;
-    padding: 12px 15px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    z-index: 1000;
-    animation: slideDown 0.3s ease-out;
-}
-
-.install-banner.hidden {
-    display: none;
-}
-
-.install-content {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    max-width: 400px;
-    margin: 0 auto;
-}
-
-.install-content span {
-    font-weight: 600;
-    font-size: 0.95rem;
-}
-
-.btn-install {
-    background: white;
-    color: #f57c00;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 20px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    font-size: 0.85rem;
-}
-
-.btn-install:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(255,255,255,0.3);
-}
-
-/* Botón manual de instalación */
-.manual-install {
-    margin-bottom: 1.5rem;
-    text-align: center;
-    animation: fadeIn 0.5s ease-out;
-}
-
-.manual-install.hidden {
-    display: none;
-}
-
-.btn-install-manual {
-    background: linear-gradient(135deg, #4caf50, #45a049);
-    color: white;
-    border: none;
-    padding: 12px 20px;
-    border-radius: 25px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    width: 100%;
-    font-size: 1rem;
-    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
-}
-
-.btn-install-manual:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(76, 175, 80, 0.4);
-}
-
-.btn-install-manual:active {
-    transform: translateY(0);
-}
-
-/* Instrucciones de instalación */
-.install-instructions {
-    background: #e8f5e8;
-    border-radius: 10px;
-    padding: 1.5rem;
-    border-left: 4px solid #4caf50;
-    margin-top: 1rem;
-}
-
-.install-instructions h3 {
-    color: #2e7d32;
-    margin-bottom: 1rem;
-    text-align: center;
-}
-
-.install-instructions p {
-    margin-bottom: 0.8rem;
-    color: #555;
-    line-height: 1.4;
-}
-
-.install-instructions strong {
-    color: #2e7d32;
-}
-
-@keyframes slideDown {
-    from {
-        transform: translateY(-100%);
-        opacity: 0;
-    }
-    to {
-        transform: translateY(0);
-        opacity: 1;
-    }
-}
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* Ajustar el header para cuando el banner está visible */
 .header {
     text-align: center;
     color: white;
     margin-bottom: 2rem;
     padding-top: 1rem;
-    transition: padding-top 0.3s ease;
-}
-
-.install-banner:not(.hidden) + .header {
-    padding-top: 4rem; /* Espacio para el banner */
 }
 
 .header h1 {
@@ -191,6 +56,7 @@ body {
     width: 100%;
     transition: all 0.3s ease;
     box-shadow: 0 4px 15px rgba(13, 71, 161, 0.3);
+    font-weight: 600;
 }
 
 .btn-primary:hover {
@@ -202,26 +68,183 @@ body {
     transform: translateY(0);
 }
 
+/* Resultados */
 .results {
     margin-top: 2rem;
     text-align: left;
 }
 
-.feature-coming {
+/* Estados de carga y mensajes */
+.loading {
+    text-align: center;
+    padding: 2rem;
+    color: #666;
     background: #f8f9fa;
     border-radius: 10px;
-    padding: 1.5rem;
     border-left: 4px solid #0d47a1;
 }
 
-.feature-coming h3 {
+.error {
+    background: #ffebee;
+    color: #c62828;
+    padding: 1.5rem;
+    border-radius: 10px;
+    text-align: center;
+    border-left: 4px solid #c62828;
+}
+
+.error h3 {
+    margin-bottom: 0.5rem;
+}
+
+.no-results {
+    background: #fff3e0;
+    color: #ef6c00;
+    padding: 1.5rem;
+    border-radius: 10px;
+    text-align: center;
+    border-left: 4px solid #ef6c00;
+}
+
+/* Información de ubicación */
+.ubicacion-info {
+    background: #e3f2fd;
+    padding: 1rem;
+    border-radius: 10px;
+    margin-bottom: 1.5rem;
+    border-left: 4px solid #0d47a1;
+}
+
+.ubicacion-info h3 {
     color: #0d47a1;
     margin-bottom: 0.5rem;
 }
 
-.feature-coming p {
+.ubicacion-info p {
+    margin-bottom: 0.25rem;
+    font-size: 0.9rem;
+}
+
+/* Lista de paradas */
+.paradas-list h3 {
+    color: #0d47a1;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+.parada-item {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-left: 4px solid #4caf50;
+    transition: all 0.3s ease;
+}
+
+.parada-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.parada-linea {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #0d47a1;
+    margin-bottom: 0.5rem;
+}
+
+.parada-direccion {
+    color: #555;
+    margin-bottom: 0.5rem;
+    line-height: 1.4;
+}
+
+.parada-distancia {
+    color: #4caf50;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+}
+
+.btn-tiempos {
+    background: linear-gradient(135deg, #4caf50, #45a049);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    width: 100%;
+}
+
+.btn-tiempos:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+}
+
+/* Tiempos de llegada */
+.tiempos-header {
+    background: #e3f2fd;
+    padding: 1rem;
+    border-radius: 10px;
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.btn-back {
+    background: #666;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    margin-bottom: 1rem;
+    transition: all 0.3s ease;
+}
+
+.btn-back:hover {
+    background: #555;
+}
+
+.tiempos-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.tiempo-item {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 1rem;
+    border-left: 4px solid #ff9800;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+}
+
+.tiempo-linea {
+    font-weight: bold;
+    color: #0d47a1;
+    grid-column: 1 / 3;
+}
+
+.tiempo-estimado {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #4caf50;
+}
+
+.tiempo-distancia {
     color: #666;
-    line-height: 1.5;
+    text-align: right;
+}
+
+.tiempo-vehiculo {
+    grid-column: 1 / 3;
+    font-size: 0.8rem;
+    color: #999;
+    text-align: center;
+    margin-top: 0.5rem;
 }
 
 /* Estilos para móviles */
@@ -238,32 +261,28 @@ body {
         padding: 1.5rem;
     }
     
-    .install-content {
-        padding: 0 10px;
+    .parada-item {
+        padding: 0.8rem;
     }
     
-    .install-content span {
-        font-size: 0.9rem;
-    }
-    
-    .btn-install-manual {
-        padding: 10px 16px;
-        font-size: 0.95rem;
+    .tiempo-item {
+        grid-template-columns: 1fr 1fr;
+        padding: 0.8rem;
     }
 }
 
-/* Estados de carga */
-.loading {
-    text-align: center;
-    padding: 2rem;
-    color: #666;
+/* Animaciones */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
-.error {
-    background: #ffebee;
-    color: #c62828;
-    padding: 1rem;
-    border-radius: 10px;
-    text-align: center;
-    border-left: 4px solid #c62828;
+.parada-item, .tiempo-item, .loading, .error, .no-results {
+    animation: fadeIn 0.3s ease-out;
 }
