@@ -1,4 +1,4 @@
-/* css/styles.css - Estilos actualizados para Transporte BA */
+/* css/styles.css - Estilos con mapa OpenStreetMap */
 * {
     margin: 0;
     padding: 0;
@@ -7,65 +7,181 @@
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #0d47a1, #1976d2);
+    background: #0d47a1;
     color: #333;
     min-height: 100vh;
+    overflow: hidden;
 }
 
 #app {
-    max-width: 400px;
-    margin: 0 auto;
-    padding: 20px;
-    min-height: 100vh;
+    width: 100%;
+    height: 100vh;
+    position: relative;
 }
 
-.header {
+/* Contenedor del Mapa */
+.map-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+#map {
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+/* Overlay sobre el mapa */
+.map-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: linear-gradient(to bottom, rgba(13, 71, 161, 0.9) 0%, transparent 100%);
+    padding: 20px;
+    pointer-events: none;
+}
+
+.map-overlay .header {
     text-align: center;
     color: white;
-    margin-bottom: 2rem;
-    padding-top: 1rem;
+    margin-bottom: 1rem;
+    pointer-events: none;
 }
 
-.header h1 {
-    font-size: 2rem;
-    margin-bottom: 0.5rem;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+.map-overlay .header h1 {
+    font-size: 1.8rem;
+    margin-bottom: 0.25rem;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
 }
 
-.header p {
+.map-overlay .header p {
     opacity: 0.9;
     font-size: 1rem;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
 }
 
+/* Controles del mapa */
+.map-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-width: 300px;
+    margin: 0 auto;
+    pointer-events: auto;
+}
+
+/* Botones */
+.btn-primary {
+    background: linear-gradient(135deg, #0d47a1, #1976d2);
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    font-size: 1rem;
+    border-radius: 25px;
+    cursor: pointer;
+    width: 100%;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(13, 71, 161, 0.4);
+    font-weight: 600;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+.btn-secondary {
+    background: linear-gradient(135deg, #4caf50, #45a049);
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    font-size: 1rem;
+    border-radius: 25px;
+    cursor: pointer;
+    width: 100%;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
+    font-weight: 600;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+.btn-install {
+    background: linear-gradient(135deg, #ff9800, #f57c00);
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    font-size: 1rem;
+    border-radius: 25px;
+    cursor: pointer;
+    width: 100%;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(255, 152, 0, 0.4);
+    font-weight: 600;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+.btn-primary:hover, .btn-secondary:hover, .btn-install:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+}
+
+.btn-primary:active, .btn-secondary:active, .btn-install:active {
+    transform: translateY(0);
+}
+
+/* Container de transporte (oculto inicialmente) */
+.transport-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: white;
+    z-index: 2000;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.transport-container.hidden {
+    display: none;
+}
+
+/* Header del transporte */
+.transport-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.btn-back {
+    background: #666;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-back:hover {
+    background: #555;
+}
+
+.transport-header h2 {
+    color: #0d47a1;
+    font-size: 1.5rem;
+}
+
+/* Contenido principal de transporte */
 .main-content {
     background: white;
     border-radius: 20px;
     padding: 2rem;
     box-shadow: 0 10px 30px rgba(0,0,0,0.2);
     text-align: center;
-}
-
-.btn-primary {
-    background: linear-gradient(135deg, #0d47a1, #1976d2);
-    color: white;
-    border: none;
-    padding: 15px 25px;
-    font-size: 1.1rem;
-    border-radius: 50px;
-    cursor: pointer;
-    width: 100%;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(13, 71, 161, 0.3);
-    font-weight: 600;
-}
-
-.btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(13, 71, 161, 0.4);
-}
-
-.btn-primary:active {
-    transform: translateY(0);
 }
 
 /* Resultados */
@@ -191,21 +307,6 @@ body {
     text-align: center;
 }
 
-.btn-back {
-    background: #666;
-    color: white;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 20px;
-    cursor: pointer;
-    margin-bottom: 1rem;
-    transition: all 0.3s ease;
-}
-
-.btn-back:hover {
-    background: #555;
-}
-
 .tiempos-list {
     display: flex;
     flex-direction: column;
@@ -249,12 +350,16 @@ body {
 
 /* Estilos para móviles */
 @media (max-width: 480px) {
-    #app {
+    .map-overlay {
         padding: 15px;
     }
     
-    .header h1 {
-        font-size: 1.7rem;
+    .map-overlay .header h1 {
+        font-size: 1.5rem;
+    }
+    
+    .transport-container {
+        padding: 15px;
     }
     
     .main-content {
@@ -285,4 +390,8 @@ body {
 
 .parada-item, .tiempo-item, .loading, .error, .no-results {
     animation: fadeIn 0.3s ease-out;
+}
+
+.hidden {
+    display: none !important;
 }
