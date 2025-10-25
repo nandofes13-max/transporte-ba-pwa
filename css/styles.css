@@ -48,42 +48,45 @@ body {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
-    max-width: 300px;
-    margin: 0 auto;
+    align-items: center;
     pointer-events: auto;
 }
 
-/* Botones */
+/* Botones ajustados al texto */
 .btn-primary {
     background: linear-gradient(135deg, #0d47a1, #1976d2);
     color: white;
     border: none;
-    padding: 12px 20px;
+    padding: 12px 24px;
     font-size: 1rem;
     border-radius: 25px;
     cursor: pointer;
-    width: 100%;
+    width: auto;
+    min-width: 200px;
     transition: all 0.3s ease;
     box-shadow: 0 4px 15px rgba(13, 71, 161, 0.4);
     font-weight: 600;
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255,255,255,0.2);
+    display: inline-block;
 }
 
 .btn-install {
     background: linear-gradient(135deg, #ff9800, #f57c00);
     color: white;
     border: none;
-    padding: 12px 20px;
+    padding: 12px 24px;
     font-size: 1rem;
     border-radius: 25px;
     cursor: pointer;
-    width: 100%;
+    width: auto;
+    min-width: 200px;
     transition: all 0.3s ease;
     box-shadow: 0 4px 15px rgba(255, 152, 0, 0.4);
     font-weight: 600;
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255,255,255,0.2);
+    display: inline-block;
 }
 
 .btn-primary:hover, .btn-install:hover {
@@ -94,8 +97,6 @@ body {
 .btn-primary:active, .btn-install:active {
     transform: translateY(0);
 }
-
-/* ... (el resto del CSS se mantiene igual) ... */
 
 /* Container de transporte (oculto inicialmente) */
 .transport-container {
@@ -141,7 +142,224 @@ body {
     font-size: 1.5rem;
 }
 
-/* ... (el resto del CSS se mantiene igual) ... */
+/* Contenido principal de transporte */
+.main-content {
+    background: white;
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    text-align: center;
+}
+
+/* Resultados */
+.results {
+    margin-top: 2rem;
+    text-align: left;
+}
+
+/* Estados de carga y mensajes */
+.loading {
+    text-align: center;
+    padding: 2rem;
+    color: #666;
+    background: #f8f9fa;
+    border-radius: 10px;
+    border-left: 4px solid #0d47a1;
+}
+
+.error {
+    background: #ffebee;
+    color: #c62828;
+    padding: 1.5rem;
+    border-radius: 10px;
+    text-align: center;
+    border-left: 4px solid #c62828;
+}
+
+.error h3 {
+    margin-bottom: 0.5rem;
+}
+
+.no-results {
+    background: #fff3e0;
+    color: #ef6c00;
+    padding: 1.5rem;
+    border-radius: 10px;
+    text-align: center;
+    border-left: 4px solid #ef6c00;
+}
+
+/* Información de ubicación */
+.ubicacion-info {
+    background: #e3f2fd;
+    padding: 1rem;
+    border-radius: 10px;
+    margin-bottom: 1.5rem;
+    border-left: 4px solid #0d47a1;
+}
+
+.ubicacion-info h3 {
+    color: #0d47a1;
+    margin-bottom: 0.5rem;
+}
+
+.ubicacion-info p {
+    margin-bottom: 0.25rem;
+    font-size: 0.9rem;
+}
+
+/* Lista de paradas */
+.paradas-list h3 {
+    color: #0d47a1;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+.parada-item {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-left: 4px solid #4caf50;
+    transition: all 0.3s ease;
+}
+
+.parada-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.parada-linea {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #0d47a1;
+    margin-bottom: 0.5rem;
+}
+
+.parada-direccion {
+    color: #555;
+    margin-bottom: 0.5rem;
+    line-height: 1.4;
+}
+
+.parada-distancia {
+    color: #4caf50;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+}
+
+.btn-tiempos {
+    background: linear-gradient(135deg, #4caf50, #45a049);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    width: 100%;
+}
+
+.btn-tiempos:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+}
+
+/* Tiempos de llegada */
+.tiempos-header {
+    background: #e3f2fd;
+    padding: 1rem;
+    border-radius: 10px;
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.tiempos-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.tiempo-item {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 1rem;
+    border-left: 4px solid #ff9800;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+}
+
+.tiempo-linea {
+    font-weight: bold;
+    color: #0d47a1;
+    grid-column: 1 / 3;
+}
+
+.tiempo-estimado {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #4caf50;
+}
+
+.tiempo-distancia {
+    color: #666;
+    text-align: right;
+}
+
+.tiempo-vehiculo {
+    grid-column: 1 / 3;
+    font-size: 0.8rem;
+    color: #999;
+    text-align: center;
+    margin-top: 0.5rem;
+}
+
+/* Estilos para móviles */
+@media (max-width: 480px) {
+    .map-overlay {
+        padding: 0 15px;
+    }
+    
+    .transport-container {
+        padding: 15px;
+    }
+    
+    .main-content {
+        padding: 1.5rem;
+    }
+    
+    .parada-item {
+        padding: 0.8rem;
+    }
+    
+    .tiempo-item {
+        grid-template-columns: 1fr 1fr;
+        padding: 0.8rem;
+    }
+    
+    .btn-primary, .btn-install {
+        min-width: 180px;
+        padding: 10px 20px;
+        font-size: 0.95rem;
+    }
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.parada-item, .tiempo-item, .loading, .error, .no-results {
+    animation: fadeIn 0.3s ease-out;
+}
 
 .hidden {
     display: none !important;
