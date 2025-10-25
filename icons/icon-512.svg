@@ -1,5 +1,5 @@
 <svg width="512" height="512" xmlns="http://www.w3.org/2000/svg">
-  <rect width="512" height="512" fill="#0d47a1"/>
-  <text x="256" y="280" text-anchor="middle" fill="white" font-family="Arial" font-size="64">🚍</text>
-  <text x="256" y="350" text-anchor="middle" fill="white" font-family="Arial" font-size="24">Transporte BA</text>
+  <rect width="512" height="512" fill="#ff9800"/>
+  <text x="256" y="280" text-anchor="middle" fill="white" font-family="Arial" font-size="60">PWA</text>
+  <text x="256" y="330" text-anchor="middle" fill="white" font-family="Arial" font-size="30">BA</text>
 </svg>
