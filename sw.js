@@ -1,5 +1,5 @@
-// sw.js - Service Worker simplificado y estable
-const CACHE_NAME = 'transporte-ba-v1';
+// sw.js - Service Worker actualizado (v4)
+const CACHE_NAME = 'transporte-ba-v4';  // 🆕 CAMBIADO a v4
 const urlsToCache = [
   '/',
   '/index.html',
@@ -11,11 +11,11 @@ const urlsToCache = [
 ];
 
 self.addEventListener('install', event => {
-  console.log('✅ Service Worker: Instalando...');
+  console.log('✅ Service Worker v4: Instalando...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('✅ Service Worker: Cacheando archivos esenciales');
+        console.log('✅ Service Worker v4: Cacheando archivos esenciales');
         return cache.addAll(urlsToCache);
       })
       .then(() => self.skipWaiting())
@@ -23,19 +23,28 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('activate', event => {
-  console.log('✅ Service Worker: Activado y listo');
-  event.waitUntil(self.clients.claim());
+  console.log('✅ Service Worker v4: Activado y listo');
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.map(cache => {
+          if (cache !== CACHE_NAME) {
+            console.log('🗑️ Eliminando cache viejo:', cache);
+            return caches.delete(cache);
+          }
+        })
+      );
+    }).then(() => self.clients.claim())
+  );
 });
 
 self.addEventListener('fetch', event => {
   event.respondWith(
     caches.match(event.request)
       .then(response => {
-        // Devuelve el cache o busca en red
         return response || fetch(event.request);
       })
       .catch(() => {
-        // Solo fallback para HTML
         if (event.request.destination === 'document') {
           return caches.match('/index.html');
         }
