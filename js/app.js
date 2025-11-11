@@ -1,37 +1,23 @@
-// js/app.js - Con orden corregido de funciones
+// js/app.js - Con botón visible en móviles no-Chrome
 class TransporteApp {
     constructor() {
         this.map = null;
         this.userMarker = null;
         this.userLocation = null;
         this.deferredPrompt = null;
-        
-        // Configuración del backend
-        this.API_BASE_URL = window.location.origin;
-        
-        // Sistema de capas
-        this.layers = {
-            'colectivos-realtime': { group: null, active: false, type: 'realtime' },
-            'colectivos-paradas': { group: null, active: false, type: 'static' },
-            'subtes-estaciones': { group: null, active: false, type: 'static' },
-            'subtes-realtime': { group: null, active: false, type: 'realtime' },
-            'trenes-estaciones': { group: null, active: false, type: 'static' },
-            'ecobici-estaciones': { group: null, active: false, type: 'static' }
-        };
-        
         this.init();
     }
 
     async init() {
         console.log('🔍 [INIT] App iniciada');
-        console.log('🔍 [INIT] Leaflet disponible:', typeof L !== 'undefined');
+        console.log('🔍 [INIT] Service Worker support:', 'serviceWorker' in navigator);
+        console.log('🔍 [INIT] App instalada:', this.isAppInstalled());
+        console.log('🔍 [INIT] Es desktop:', this.isDesktop());
         
-        // Inicializar el mapa inmediatamente
-        this.initMap();
-        
-        // Luego el resto de la inicialización
+        // Configurar eventos de instalación PWA
         this.setupInstallPrompt();
         
+        // Verificar Service Worker
         if ('serviceWorker' in navigator) {
             try {
                 await navigator.serviceWorker.register('/sw.js');
@@ -41,243 +27,214 @@ class TransporteApp {
             }
         }
 
+        // Inicializar la aplicación
         this.loadApp();
+    }
+
+    // FUNCIÓN PARA DETECTAR SI ES DESKTOP
+    isDesktop() {
+        const userAgent = navigator.userAgent.toLowerCase();
+        const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+        const isTablet = /(tablet|ipad|playbook|silk)|(android(?!.*mobile))/i.test(userAgent);
+        
+        console.log('🔍 [DEVICE] Mobile:', isMobile, 'Tablet:', isTablet, 'Desktop:', !isMobile && !isTablet);
+        return !isMobile && !isTablet;
+    }
+
+    // FUNCIÓN PARA DETECTAR SI LA APP ESTÁ INSTALADA
+    isAppInstalled() {
+        // Método 1: Verificar display-mode (estándar PWA)
+        if (window.matchMedia('(display-mode: standalone)').matches) {
+            console.log('📱 [DETECT] App detectada por display-mode: standalone');
+            return true;
+        }
+        
+        // Método 2: iOS Safari
+        if (window.navigator.standalone) {
+            console.log('📱 [DETECT] App detectada por navigator.standalone');
+            return true;
+        }
+        
+        // Método 3: Android Chrome
+        if (document.referrer.includes('android-app://')) {
+            console.log('📱 [DETECT] App detectada por referrer android');
+            return true;
+        }
+        
+        return false;
+    }
+
+    setupInstallPrompt() {
+        console.log('🔍 [SETUP] Configurando eventos de instalación');
+        
+        window.addEventListener('beforeinstallprompt', (e) => {
+            console.log('🎯 [PWA] Evento beforeinstallprompt DISPARADO');
+            e.preventDefault();
+            this.deferredPrompt = e;
+            console.log('🔍 [PWA] deferredPrompt guardado:', !!this.deferredPrompt);
+        });
+
+        window.addEventListener('appinstalled', (evt) => {
+            console.log('🎉 [PWA] App instalada en el dispositivo');
+            this.hideInstallButton();
+        });
+    }
+
+    loadApp() {
+        console.log('🔍 [LOAD] Cargando aplicación con mapa...');
+        
+        // EL BOTÓN ESTÁ OCULTO POR CSS - SOLO SE MUESTRA SI ES NECESARIO
+        this.showInstallButtonIfNeeded();
+        
+        // Inicializar el mapa inmediatamente
+        this.initMap();
+        
+        // Configurar event listeners
+        this.setupEventListeners();
+        
+        console.log('🔍 [LOAD] App cargada completamente');
+    }
+
+    // FUNCIÓN PARA MOSTRAR BOTÓN SOLO SI ES NECESARIO
+    showInstallButtonIfNeeded() {
+        const installBtn = document.getElementById('installBtn');
+        if (!installBtn) return;
+        
+        // 🆕 MOSTRAR EN MÓVILES AUNQUE NO SEA CHROME
+        const shouldShow = !this.isAppInstalled() && !this.isDesktop();
+        
+        console.log('🔍 [SHOW-BTN] Mostrar botón?:', shouldShow, 
+                   'Instalada:', this.isAppInstalled(), 
+                   'Desktop:', this.isDesktop());
+        
+        if (shouldShow) {
+            installBtn.classList.add('visible');
+            console.log('✅ [SHOW-BTN] Botón mostrado');
+        } else {
+            installBtn.classList.remove('visible');
+            console.log('🚫 [SHOW-BTN] Botón ocultado');
+        }
     }
 
     initMap() {
         console.log('🔍 [MAP] Inicializando mapa...');
-        
-        // Verificar que Leaflet esté cargado
-        if (typeof L === 'undefined') {
-            console.error('❌ [MAP] Leaflet no está cargado');
-            this.showMessage('Error: El mapa no pudo cargarse. Recarga la página.', 10000);
-            return;
-        }
-        
-        try {
-            // Crear el mapa con configuración básica
-            this.map = L.map('map', {
-                center: [-34.6037, -58.3816],
-                zoom: 13,
-                zoomControl: true,
-                attributionControl: true
-            });
+        this.map = L.map('map').setView([-34.6037, -58.3816], 13);
 
-            // Añadir capa base de OpenStreetMap
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-                maxZoom: 19
-            }).addTo(this.map);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 18
+        }).addTo(this.map);
 
-            console.log('✅ [MAP] Mapa inicializado correctamente');
-            
-            // Configurar sistema de capas después de que el mapa esté listo
-            this.setupLayersSystem();
-            this.setupEventListeners();
-            
-        } catch (error) {
-            console.error('❌ [MAP] Error inicializando mapa:', error);
-            this.showMessage('Error cargando el mapa: ' + error.message, 10000);
-        }
-    }
-
-    setupLayersSystem() {
-        console.log('🔧 [LAYERS] Configurando sistema de capas...');
-        
-        // Inicializar grupos de capas
-        Object.keys(this.layers).forEach(layerId => {
-            this.layers[layerId].group = L.layerGroup().addTo(this.map);
-        });
-        
-        // Cargar preferencias guardadas
-        this.loadLayerPreferences();
-        
-        console.log('✅ [LAYERS] Sistema de capas configurado');
-    }
-
-    // ===== PREFERENCIAS - MOVIDA ARRIBA DE setupEventListeners =====
-    saveLayerPreferences() {
-        const preferences = {};
-        Object.keys(this.layers).forEach(layerId => {
-            preferences[layerId] = this.layers[layerId].active;
-        });
-        localStorage.setItem('transportLayers', JSON.stringify(preferences));
-        console.log('💾 [PREF] Preferencias guardadas:', preferences);
-    }
-
-    loadLayerPreferences() {
-        const saved = localStorage.getItem('transportLayers');
-        if (saved) {
-            const preferences = JSON.parse(saved);
-            console.log('💾 [PREF] Preferencias cargadas:', preferences);
-            
-            Object.keys(preferences).forEach(layerId => {
-                if (this.layers[layerId]) {
-                    this.layers[layerId].active = preferences[layerId];
-                    const checkbox = document.getElementById(`layer-${layerId}`);
-                    if (checkbox) checkbox.checked = preferences[layerId];
-                    
-                    if (preferences[layerId]) {
-                        console.log(`🔧 [PREF] Cargando capa guardada: ${layerId}`);
-                        this.loadLayerData(layerId);
-                    }
-                }
-            });
-        } else {
-            console.log('💾 [PREF] No hay preferencias guardadas');
-        }
-    }
-
-    // ===== FUNCIÓN DE MENSAJES - MOVIDA ARRIBA =====
-    showMessage(message, duration = 3000) {
-        console.log(`💬 [MSG] ${message}`);
-        
-        let messageEl = document.getElementById('app-message');
-        if (!messageEl) {
-            messageEl = document.createElement('div');
-            messageEl.id = 'app-message';
-            messageEl.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: #333;
-                color: white;
-                padding: 12px 20px;
-                border-radius: 8px;
-                z-index: 10000;
-                max-width: 300px;
-                word-wrap: break-word;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            `;
-            document.body.appendChild(messageEl);
-        }
-        
-        messageEl.textContent = message;
-        messageEl.style.display = 'block';
-        
-        setTimeout(() => {
-            messageEl.style.display = 'none';
-        }, duration);
+        console.log('✅ [MAP] Mapa inicializado');
     }
 
     setupEventListeners() {
         console.log('🔍 [EVENTS] Configurando event listeners');
         
-        // Botones principales - CON CORRECCIÓN DE NULL CHECKS
-        const locateBtn = document.getElementById('locateBtn');
-        const installBtn = document.getElementById('installBtn');
-        
-        if (locateBtn) {
-            locateBtn.addEventListener('click', () => {
-                console.log('🖱️ [BTN] Botón ubicación clickeado');
-                this.centerOnUserLocation();
-            });
-        } else {
-            console.error('❌ [EVENTS] Botón locateBtn no encontrado');
-        }
-
-        if (installBtn) {
-            installBtn.addEventListener('click', () => {
-                console.log('🖱️ [BTN] Botón instalar clickeado');
-                this.installApp();
-            });
-        }
-
-        // Sistema de capas
-        const togglePanelBtn = document.getElementById('toggle-panel');
-        const toggleLayersBtn = document.getElementById('toggle-layers');
-        
-        if (togglePanelBtn) {
-            togglePanelBtn.addEventListener('click', () => {
-                this.toggleLayersPanel();
-            });
-        }
-
-        if (toggleLayersBtn) {
-            toggleLayersBtn.addEventListener('click', () => {
-                this.toggleLayersPanel();
-            });
-        }
-
-        // Checkboxes de capas
-        document.querySelectorAll('.layer-checkbox input').forEach(checkbox => {
-            checkbox.addEventListener('change', (e) => {
-                const layerId = e.target.dataset.layer;
-                this.toggleLayer(layerId, e.target.checked);
-            });
+        document.getElementById('locateBtn').addEventListener('click', () => {
+            console.log('🖱️ [BTN] Botón ubicación clickeado');
+            this.centerOnUserLocation();
         });
 
-        // Controles adicionales
-        const refreshBtn = document.getElementById('refresh-data');
-        const clearBtn = document.getElementById('clear-all');
-        
-        if (refreshBtn) {
-            refreshBtn.addEventListener('click', () => {
-                this.refreshAllLayers();
-            });
-        }
-
-        if (clearBtn) {
-            clearBtn.addEventListener('click', () => {
-                this.clearAllLayers();
-            });
-        }
+        document.getElementById('installBtn').addEventListener('click', () => {
+            console.log('🖱️ [BTN] Botón instalar clickeado');
+            this.installApp();
+        });
         
         console.log('✅ [EVENTS] Event listeners configurados');
     }
 
-    // ===== FUNCIÓN DE UBICACIÓN =====
-    async centerOnUserLocation() {
-        console.log('🔍 [LOCATION] Obteniendo ubicación...');
+    async installApp() {
+        console.log('🔍 [INSTALL] Iniciando proceso de instalación');
+        console.log('🔍 [INSTALL] deferredPrompt disponible:', !!this.deferredPrompt);
         
-        const locateBtn = document.getElementById('locateBtn');
-        if (!locateBtn) {
-            console.error('❌ [LOCATION] Botón locateBtn no encontrado');
-            return;
+        if (this.deferredPrompt) {
+            console.log('🚀 [INSTALL] Intentando instalación automática...');
+            try {
+                this.deferredPrompt.prompt();
+                const { outcome } = await this.deferredPrompt.userChoice;
+                console.log('📋 [INSTALL] Resultado instalación:', outcome);
+                
+                if (outcome === 'accepted') {
+                    console.log('✅ [INSTALL] Usuario aceptó instalar la PWA');
+                    this.hideInstallButton();
+                    return;
+                } else {
+                    console.log('❌ [INSTALL] Usuario rechazó instalar la PWA');
+                }
+                
+            } catch (error) {
+                console.error('❌ [INSTALL] Error en instalación automática:', error);
+            }
+            
+            this.deferredPrompt = null;
+            console.log('🔍 [INSTALL] deferredPrompt limpiado');
         }
         
-        // Guardar texto original
-        const originalText = locateBtn.innerHTML;
+        // 🆕 SI NO HAY DEFERREDPROMPT, MOSTRAR INSTRUCCIONES DE INSTALACIÓN MANUAL
+        console.log('🔍 [INSTALL] Mostrando instrucciones de instalación manual...');
+        this.showInstallInstructions();
+        console.log('🔍 [INSTALL] Ocultando botón...');
+        this.hideInstallButton();
+    }
+
+    // 🆕 FUNCIÓN PARA INSTRUCCIONES DE INSTALACIÓN MANUAL
+   showInstallInstructions() {
+    alert('Para una mejor experiencia utilice el navegador Google Chrome');
+}
+    hideInstallButton() {
+        console.log('🔍 [HIDE] Intentando ocultar botón de instalación');
+        const installBtn = document.getElementById('installBtn');
+        console.log('🔍 [HIDE] Botón encontrado:', !!installBtn);
+        
+        if (installBtn) {
+            installBtn.classList.remove('visible');
+            console.log('✅ [HIDE] Botón ocultado via CSS class');
+        } else {
+            console.log('❌ [HIDE] No se encontró el botón installBtn');
+        }
+    }
+
+    async centerOnUserLocation() {
+        console.log('🔍 [LOCATION] Obteniendo ubicación...');
+        const locateBtn = document.getElementById('locateBtn');
         locateBtn.innerHTML = '📍 Obteniendo ubicación...';
         locateBtn.disabled = true;
 
         try {
-            console.log('📍 [LOCATION] Solicitando permisos de geolocalización...');
-            
+            // PRIMERO: Intentar GPS de alta precisión
             const position = await this.getCurrentPosition();
             const { latitude, longitude, accuracy } = position.coords;
             
-            console.log('📍 [LOCATION] GPS obtenido:', { latitude, longitude, accuracy });
+            console.log('📍 [LOCATION] GPS obtenido:', latitude, longitude, 'Precisión:', accuracy, 'm');
             
+            // Si la precisión es mala (>1000m), usar fallback
             if (accuracy > 1000) {
                 console.log('⚠️ [LOCATION] Precisión GPS pobre, usando fallback...');
                 await this.useIPGeolocationFallback();
             } else {
                 this.userLocation = { lat: latitude, lng: longitude };
-                this.centerMapOnLocation(latitude, longitude, 15);
+                this.centerMapOnLocation(latitude, longitude);
                 console.log('✅ [LOCATION] Ubicación GPS centrada');
-                this.showMessage(`📍 Ubicación encontrada (precisión: ${Math.round(accuracy)}m)`);
             }
             
         } catch (error) {
             console.error('❌ [LOCATION] Error GPS:', error);
-            this.showMessage('❌ No se pudo obtener la ubicación GPS');
             
+            // FALLBACK: Usar geolocalización por IP
             try {
-                console.log('🌐 [LOCATION] Intentando geolocalización por IP...');
                 await this.useIPGeolocationFallback();
             } catch (ipError) {
                 console.error('❌ [LOCATION] Error fallback IP:', ipError);
                 this.handleLocationError(error);
             }
         } finally {
-            // Restaurar botón
-            locateBtn.innerHTML = originalText;
+            locateBtn.innerHTML = '📍 Centrar en mi ubicación';
             locateBtn.disabled = false;
         }
     }
 
+    // FUNCIÓN DE FALLBACK POR IP
     async useIPGeolocationFallback() {
         console.log('🌐 [LOCATION] Usando geolocalización por IP...');
         
@@ -290,47 +247,32 @@ class TransporteApp {
             
             if (data.latitude && data.longitude) {
                 this.userLocation = { lat: data.latitude, lng: data.longitude };
-                this.centerMapOnLocation(data.latitude, data.longitude, 12);
+                this.centerMapOnLocation(data.latitude, data.longitude);
                 console.log('✅ [LOCATION] Ubicación por IP centrada');
-                this.showMessage('📍 Ubicación aproximada por IP');
             } else {
                 throw new Error('No se pudo obtener ubicación por IP');
             }
         } catch (error) {
+            // ÚLTIMO FALLBACK: Buenos Aires centro
             console.log('🏙️ [LOCATION] Usando ubicación por defecto (Buenos Aires)');
             this.userLocation = { lat: -34.6037, lng: -58.3816 };
-            this.centerMapOnLocation(-34.6037, -58.3816, 13);
+            this.centerMapOnLocation(-34.6037, -58.3816);
             console.log('✅ [LOCATION] Ubicación por defecto centrada');
-            this.showMessage('📍 Usando ubicación por defecto (Buenos Aires)');
         }
     }
 
-    centerMapOnLocation(lat, lng, zoom = 15) {
-        if (!this.map) {
-            console.error('❌ [LOCATION] Mapa no inicializado');
-            return;
-        }
+    // FUNCIÓN PARA CENTRAR MAPA (reutilizable)
+    centerMapOnLocation(lat, lng) {
+        this.map.setView([lat, lng], 15);
         
-        this.map.setView([lat, lng], zoom);
-        
-        // Crear o actualizar marcador de ubicación
         if (this.userMarker) {
             this.userMarker.setLatLng([lat, lng]);
         } else {
-            this.userMarker = L.marker([lat, lng], {
-                icon: L.divIcon({
-                    className: 'user-location-marker',
-                    html: '📍',
-                    iconSize: [24, 24],
-                    iconAnchor: [12, 12]
-                })
-            })
-            .addTo(this.map)
-            .bindPopup('📍 Tu ubicación actual')
-            .openPopup();
+            this.userMarker = L.marker([lat, lng])
+                .addTo(this.map)
+                .bindPopup('📍 Tu ubicación actual')
+                .openPopup();
         }
-        
-        console.log('✅ [LOCATION] Mapa centrado en:', { lat, lng, zoom });
     }
 
     getCurrentPosition() {
@@ -340,15 +282,11 @@ class TransporteApp {
                 return;
             }
 
-            navigator.geolocation.getCurrentPosition(
-                resolve, 
-                reject, 
-                {
-                    enableHighAccuracy: true,
-                    timeout: 15000, // 15 segundos
-                    maximumAge: 60000
-                }
-            );
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 60000
+            });
         });
     }
 
@@ -357,7 +295,7 @@ class TransporteApp {
         
         switch(error.code) {
             case error.PERMISSION_DENIED:
-                message = 'Permiso de ubicación denegado. Permite el acceso a la ubicación para usar esta función.';
+                message = 'Permiso de ubicación denegado. Permite el acceso a la ubicación para usar el mapa.';
                 break;
             case error.POSITION_UNAVAILABLE:
                 message = 'Información de ubicación no disponible.';
@@ -367,220 +305,14 @@ class TransporteApp {
                 break;
         }
 
-        this.showMessage(`❌ Error de ubicación: ${message}`, 5000);
-    }
-
-    // ... (el resto de las funciones de capas y API van aquí)
-
-    // ===== GESTIÓN DE CAPAS =====
-    toggleLayersPanel() {
-        const panel = document.getElementById('layers-panel');
-        const toggleBtn = document.getElementById('toggle-layers');
-        
-        if (!panel || !toggleBtn) return;
-        
-        panel.classList.toggle('collapsed');
-        
-        if (panel.classList.contains('collapsed')) {
-            toggleBtn.innerHTML = '▶';
-        } else {
-            toggleBtn.innerHTML = '◀';
-        }
-    }
-
-    toggleLayer(layerId, isActive) {
-        console.log(`🔧 [LAYER] ${isActive ? 'Activando' : 'Desactivando'} capa: ${layerId}`);
-        
-        this.layers[layerId].active = isActive;
-        
-        if (isActive) {
-            this.loadLayerData(layerId);
-        } else {
-            this.clearLayer(layerId);
-        }
-        
-        // Guardar preferencias
-        this.saveLayerPreferences();
-    }
-
-    async loadLayerData(layerId) {
-        console.log(`🚀 [API] Cargando datos para capa: ${layerId}`);
-        
-        try {
-            switch (layerId) {
-                case 'colectivos-realtime':
-                    await this.loadColectivosRealtime();
-                    break;
-                case 'colectivos-paradas':
-                    await this.loadColectivosParadas();
-                    break;
-                case 'subtes-estaciones':
-                    await this.loadSubtesEstaciones();
-                    break;
-                case 'subtes-realtime':
-                    await this.loadSubtesRealtime();
-                    break;
-                case 'trenes-estaciones':
-                    await this.loadTrenesEstaciones();
-                    break;
-                case 'ecobici-estaciones':
-                    await this.loadEcobiciEstaciones();
-                    break;
-                default:
-                    console.warn(`⚠️ [LAYER] Capa desconocida: ${layerId}`);
-            }
-            
-            console.log(`✅ [LAYER] Carga completada para: ${layerId}`);
-            
-        } catch (error) {
-            console.error(`❌ [LAYER] Error cargando capa ${layerId}:`, error);
-            this.showMessage(`❌ API falló - ${this.getLayerName(layerId)} no disponible`, 5000);
-            
-            // Desactivar la capa automáticamente
-            this.layers[layerId].active = false;
-            const checkbox = document.getElementById(`layer-${layerId}`);
-            if (checkbox) checkbox.checked = false;
-            this.saveLayerPreferences();
-        }
-    }
-
-    clearLayer(layerId) {
-        if (this.layers[layerId].group) {
-            this.layers[layerId].group.clearLayers();
-            console.log(`🗑️ [LAYER] Capa ${layerId} limpiada`);
-        }
-    }
-
-    async refreshAllLayers() {
-        console.log('🔄 [LAYERS] Actualizando todas las capas activas...');
-        
-        for (const [layerId, layer] of Object.entries(this.layers)) {
-            if (layer.active) {
-                console.log(`🔄 [LAYERS] Actualizando capa: ${layerId}`);
-                await this.loadLayerData(layerId);
-                await new Promise(resolve => setTimeout(resolve, 300));
-            }
-        }
-        
-        console.log('✅ [LAYERS] Todas las capas actualizadas');
-    }
-
-    clearAllLayers() {
-        console.log('🗑️ [LAYERS] Limpiando todas las capas...');
-        
-        Object.keys(this.layers).forEach(layerId => {
-            this.clearLayer(layerId);
-            const checkbox = document.getElementById(`layer-${layerId}`);
-            if (checkbox) checkbox.checked = false;
-            this.layers[layerId].active = false;
-        });
-        
-        this.saveLayerPreferences();
-        console.log('✅ [LAYERS] Todas las capas limpiadas');
-    }
-
-    // ===== FUNCIONES AUXILIARES =====
-    getLayerName(layerId) {
-        const names = {
-            'colectivos-realtime': 'Colectivos en tiempo real',
-            'colectivos-paradas': 'Paradas de colectivos',
-            'subtes-estaciones': 'Estaciones de subte',
-            'subtes-realtime': 'Subtes en tiempo real',
-            'trenes-estaciones': 'Estaciones de tren',
-            'ecobici-estaciones': 'Estaciones de Ecobici'
-        };
-        return names[layerId] || layerId;
-    }
-
-    // ===== FUNCIONES EXISTENTES (mantenidas) =====
-    async installApp() {
-        console.log('🔍 [INSTALL] Iniciando proceso de instalación');
-        
-        if (this.deferredPrompt) {
-            try {
-                this.deferredPrompt.prompt();
-                const { outcome } = await this.deferredPrompt.userChoice;
-                
-                if (outcome === 'accepted') {
-                    console.log('✅ [INSTALL] Usuario aceptó instalar la PWA');
-                    this.hideInstallButton();
-                    return;
-                }
-            } catch (error) {
-                console.error('❌ [INSTALL] Error en instalación automática:', error);
-            }
-            
-            this.deferredPrompt = null;
-        }
-        
-        this.showInstallInstructions();
-        this.hideInstallButton();
-    }
-
-    showInstallInstructions() {
-        alert('Para una mejor experiencia utilice el navegador Google Chrome');
-    }
-
-    hideInstallButton() {
-        const installBtn = document.getElementById('installBtn');
-        if (installBtn) {
-            installBtn.classList.remove('visible');
-        }
-    }
-
-    setupInstallPrompt() {
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            this.deferredPrompt = e;
-        });
-
-        window.addEventListener('appinstalled', (evt) => {
-            console.log('🎉 [PWA] App instalada en el dispositivo');
-            this.hideInstallButton();
-        });
-    }
-
-    showInstallButtonIfNeeded() {
-        const installBtn = document.getElementById('installBtn');
-        if (!installBtn) return;
-        
-        const shouldShow = !this.isAppInstalled() && !this.isDesktop();
-        
-        if (shouldShow) {
-            installBtn.classList.add('visible');
-        } else {
-            installBtn.classList.remove('visible');
-        }
-    }
-
-    isAppInstalled() {
-        if (window.matchMedia('(display-mode: standalone)').matches) return true;
-        if (window.navigator.standalone) return true;
-        if (document.referrer.includes('android-app://')) return true;
-        return false;
-    }
-
-    isDesktop() {
-        const userAgent = navigator.userAgent.toLowerCase();
-        const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
-        const isTablet = /(tablet|ipad|playbook|silk)|(android(?!.*mobile))/i.test(userAgent);
-        return !isMobile && !isTablet;
-    }
-
-    loadApp() {
-        console.log('🔍 [LOAD] Cargando aplicación...');
-        this.showInstallButtonIfNeeded();
-        console.log('🔍 [LOAD] App cargada completamente');
+        alert(`❌ Error de ubicación: ${message}`);
     }
 }
 
 // Inicializar la app cuando se cargue el DOM
 document.addEventListener('DOMContentLoaded', () => {
     console.log('📄 [DOM] DOM completamente cargado');
-    console.log('🔍 [LEAFLET] Leaflet disponible:', typeof L !== 'undefined');
     window.app = new TransporteApp();
 });
 
-window.addEventListener('load', () => {
-    console.log('🔄 [WINDOW] Ventana completamente cargada');
-});
+console.log('🧩 [SCRIPT] app.js cargado (antes de DOMContentLoaded)');
