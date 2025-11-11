@@ -305,86 +305,89 @@ class TransporteApp {
     }
 
     // ===== API CALLS =====
-    async makeAPIRequest(endpoint) {
-        const CLIENT_ID = process.env.CLIENT_ID || '1488a5089c9d4fc3852d46ddb850a28a';
-        const CLIENT_SECRET = process.env.CLIENT_SECRET || '799d511d89674AD893D1e2587Dc748c2';
-        const BASE_URL = 'https://apitransporte.buenosaires.gob.ar';
-        const proxy = 'https://corsproxy.io/?';
+async makeAPIRequest(endpoint) {
+    // Usar API keys directamente (process.env no funciona en frontend)
+    const CLIENT_ID = '1488a5089c9d4fc3852d46ddb850a28a';
+    const CLIENT_SECRET = '799d511d89674AD893D1e2587Dc748c2';
+    const BASE_URL = 'https://apitransporte.buenosaires.gob.ar';
+    const proxy = 'https://corsproxy.io/?';
+    
+    const url = `${proxy}${encodeURIComponent(
+        `${BASE_URL}${endpoint}?client_id=${CLIENT_ID}&client_secret=${CLIENT_SECRET}`
+    )}`;
+    
+    console.log(`🌐 [API] Haciendo request a: ${endpoint}`);
+    console.log(`🔗 [API] URL completa: ${url}`);
+    
+    try {
+        const response = await fetch(url);
+        console.log(`📡 [API] Response status: ${response.status} ${response.statusText}`);
         
-        const url = `${proxy}${encodeURIComponent(
-            `${BASE_URL}${endpoint}?client_id=${CLIENT_ID}&client_secret=${CLIENT_SECRET}`
-        )}`;
-        
-        console.log(`🌐 [API] Haciendo request a: ${endpoint}`);
-        console.log(`🔗 [API] URL completa: ${url}`);
-        
-        try {
-            const response = await fetch(url);
-            console.log(`📡 [API] Response status: ${response.status} ${response.statusText}`);
-            
-            if (!response.ok) {
-                throw new Error(`API error: ${response.status} ${response.statusText}`);
-            }
-            
-            const data = await response.json();
-            console.log(`✅ [API] Datos recibidos:`, data);
-            console.log(`📊 [API] Tipo de datos: ${typeof data}, Es array: ${Array.isArray(data)}`);
-            
-            if (Array.isArray(data)) {
-                console.log(`🔢 [API] Cantidad de elementos: ${data.length}`);
-                if (data.length > 0) {
-                    console.log(`🔍 [API] Primer elemento:`, data[0]);
-                }
-            }
-            
-            return data;
-            
-        } catch (error) {
-            console.error(`❌ [API] Error en request:`, error);
-            throw error;
+        if (!response.ok) {
+            throw new Error(`API error: ${response.status} ${response.statusText}`);
         }
+        
+        const data = await response.json();
+        console.log(`✅ [API] Datos recibidos:`, data);
+        console.log(`📊 [API] Tipo de datos: ${typeof data}, Es array: ${Array.isArray(data)}`);
+        
+        if (Array.isArray(data)) {
+            console.log(`🔢 [API] Cantidad de elementos: ${data.length}`);
+            if (data.length > 0) {
+                console.log(`🔍 [API] Primer elemento:`, data[0]);
+            }
+        }
+        
+        return data;
+        
+    } catch (error) {
+        console.error(`❌ [API] Error en request:`, error);
+        throw error;
     }
-
+}
     async loadColectivosRealtime() {
-        console.log('🚍 [COLECTIVOS] Cargando colectivos en tiempo real...');
-        const data = await this.makeAPIRequest('/colectivos/vehiclePositionsSimple');
-        const layer = this.layers['colectivos-realtime'].group;
+    console.log('🚍 [COLECTIVOS] Cargando colectivos en tiempo real...');
+    const data = await this.makeAPIRequest('/colectivos/vehiclePositionsSimple');
+    const layer = this.layers['colectivos-realtime'].group;
+    
+    layer.clearLayers();
+    
+    // Mostrar TODOS los colectivos primero (sin filtrar)
+    console.log(`📍 [COLECTIVOS] ${data.length} colectivos recibidos en total`);
+    
+    // Filtrar cerca de la vista actual (opcional, para performance)
+    const bounds = this.map.getBounds();
+    const colectivosCercanos = data.filter(colectivo => 
+        bounds.contains([colectivo.latitude, colectivo.longitude])
+    ).slice(0, 50); // Limitar para no saturar
+    
+    console.log(`📍 [COLECTIVOS] ${colectivosCercanos.length} colectivos cerca de la vista`);
+    
+    colectivosCercanos.forEach(colectivo => {
+        const enMovimiento = colectivo.speed > 5;
         
-        layer.clearLayers();
-        
-        // Filtrar cerca de la vista actual (opcional, para performance)
-        const bounds = this.map.getBounds();
-        const colectivosCercanos = data.filter(colectivo => 
-            bounds.contains([colectivo.latitude, colectivo.longitude])
-        ).slice(0, 100); // Limitar para no saturar
-        
-        console.log(`📍 [COLECTIVOS] ${colectivosCercanos.length} colectivos cerca de la vista`);
-        
-        colectivosCercanos.forEach(colectivo => {
-            const enMovimiento = colectivo.speed > 5;
-            
-            L.marker([colectivo.latitude, colectivo.longitude], {
-                icon: L.divIcon({
-                    className: `colectivo-marker ${enMovimiento ? 'en-movimiento' : ''}`,
-                    html: '🚍',
-                    iconSize: [24, 24],
-                    iconAnchor: [12, 12]
-                })
+        L.marker([colectivo.latitude, colectivo.longitude], {
+            icon: L.divIcon({
+                className: `colectivo-marker ${enMovimiento ? 'en-movimiento' : ''}`,
+                html: '🚍',
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
             })
-            .addTo(layer)
-            .bindPopup(`
-                <div class="popup-colectivo">
-                    <strong>🚍 Línea ${colectivo.route_short_name}</strong><br>
-                    <em>${colectivo.trip_headsign}</em><br>
-                    <strong>Velocidad:</strong> ${colectivo.speed ? Math.round(colectivo.speed) + ' km/h' : 'Detenido'}<br>
-                    <strong>Estado:</strong> ${enMovimiento ? '🟢 En movimiento' : '🟡 Detenido'}
-                </div>
-            `);
-        });
-        
-        console.log(`✅ [COLECTIVOS] ${colectivosCercanos.length} colectivos mostrados`);
-        this.showMessage(`${colectivosCercanos.length} colectivos mostrados en el mapa`);
-    }
+        })
+        .addTo(layer)
+        .bindPopup(`
+            <div class="popup-colectivo">
+                <strong>🚍 Línea ${colectivo.route_short_name}</strong><br>
+                <em>${colectivo.trip_headsign}</em><br>
+                <strong>Velocidad:</strong> ${colectivo.speed ? Math.round(colectivo.speed) + ' km/h' : 'Detenido'}<br>
+                <strong>Estado:</strong> ${enMovimiento ? '🟢 En movimiento' : '🟡 Detenido'}
+            </div>
+        `);
+    });
+    
+    console.log(`✅ [COLECTIVOS] ${colectivosCercanos.length} colectivos mostrados`);
+    this.showMessage(`${colectivosCercanos.length} colectivos mostrados en el mapa`);
+}
 
     async loadColectivosParadas() {
         console.log('📍 [PARADAS] Cargando paradas de colectivos...');
