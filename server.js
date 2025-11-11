@@ -33,20 +33,27 @@ app.use((req, res, next) => {
 app.use(express.static('.'));
 
 // ===== UTILIDADES =====
-async function makeAPIRequest(endpoint) {
-  const url = `${API_CONFIG.BASE_URL}${endpoint}?client_id=${API_CONFIG.CLIENT_ID}&client_secret=${API_CONFIG.CLIENT_SECRET}`;
+async function makeAPIRequest(endpoint, params = {}) {
+  const baseParams = `client_id=${API_CONFIG.CLIENT_ID}&client_secret=${API_CONFIG.CLIENT_SECRET}`;
+  const additionalParams = new URLSearchParams(params).toString();
+  const urlParams = additionalParams ? `${baseParams}&${additionalParams}` : baseParams;
+  
+  const url = `${API_CONFIG.BASE_URL}${endpoint}?${urlParams}`;
   
   console.log(`🌐 [BACKEND] Haciendo request a: ${endpoint}`);
+  console.log(`📋 [BACKEND] Parámetros:`, params);
   
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      timeout: 10000 // 10 segundos timeout
+    });
     
     if (!response.ok) {
       throw new Error(`API error: ${response.status} ${response.statusText}`);
     }
     
     const data = await response.json();
-    console.log(`✅ [BACKEND] Datos recibidos: ${data.length || 'object'} elementos`);
+    console.log(`✅ [BACKEND] Datos recibidos: ${Array.isArray(data) ? data.length + ' elementos' : 'objeto'}`);
     
     return data;
   } catch (error) {
@@ -63,8 +70,8 @@ app.get('/health', (req, res) => {
     message: '🚍 Backend Transporte BA funcionando',
     status: 'OK',
     timestamp: new Date().toISOString(),
-    version: '1.1.0',
-    features: ['colectivos', 'subtes', 'trenes', 'ecobici']
+    version: '1.2.0',
+    features: ['colectivos', 'subtes', 'trenes', 'ecobici', 'paradas']
   });
 });
 
@@ -102,22 +109,41 @@ app.get('/api/colectivos/posiciones', async (req, res) => {
     console.error('❌ Error en /api/colectivos/posiciones:', error);
     res.status(500).json({ 
       success: false,
-      error: 'Error obteniendo posiciones de colectivos',
+      error: 'API falló',
       details: error.message
     });
   }
 });
 
-// 🚍 COLECTIVOS - Paradas (placeholder para futuro)
+// 🚍 COLECTIVOS - Paradas (ENDOPOINT REAL)
 app.get('/api/colectivos/paradas', async (req, res) => {
   try {
     console.log('📍 [API] Solicitando paradas de colectivos...');
     
-    // Por ahora devolvemos un mensaje - implementar cuando tengamos el endpoint correcto
+    // Usar el endpoint real de la API según documentación
+    const data = await makeAPIRequest('/colectivos/stops');
+    
+    // Filtrar por ubicación si se proporciona
+    const { lat, lng, radio = 2 } = req.query;
+    let paradasFiltradas = data;
+    
+    if (lat && lng && data && data.length > 0) {
+      const radioKm = parseFloat(radio);
+      paradasFiltradas = data.filter(parada => {
+        if (!parada.latitude || !parada.longitude) return false;
+        const distancia = calcularDistancia(
+          parseFloat(lat), parseFloat(lng),
+          parseFloat(parada.latitude), parseFloat(parada.longitude)
+        );
+        return distancia <= radioKm;
+      });
+    }
+    
     res.json({
       success: true,
-      message: 'Función de paradas en desarrollo',
-      data: [],
+      data: paradasFiltradas || [],
+      total: data ? data.length : 0,
+      filtrados: paradasFiltradas ? paradasFiltradas.length : 0,
       timestamp: new Date().toISOString()
     });
     
@@ -125,43 +151,47 @@ app.get('/api/colectivos/paradas', async (req, res) => {
     console.error('❌ Error en /api/colectivos/paradas:', error);
     res.status(500).json({ 
       success: false,
-      error: 'Error obteniendo paradas de colectivos'
+      error: 'API falló',
+      details: error.message
     });
   }
 });
 
-// 🚇 SUBTES - Estaciones
+// 🚍 COLECTIVOS - Líneas de colectivos
+app.get('/api/colectivos/lineas', async (req, res) => {
+  try {
+    console.log('🟢 [API] Solicitando líneas de colectivos...');
+    
+    const data = await makeAPIRequest('/colectivos/routes');
+    
+    res.json({
+      success: true,
+      data: data || [],
+      total: data ? data.length : 0,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Error en /api/colectivos/lineas:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'API falló',
+      details: error.message
+    });
+  }
+});
+
+// 🚇 SUBTES - Estaciones y estado
 app.get('/api/subtes/estaciones', async (req, res) => {
   try {
     console.log('🚇 [API] Solicitando estaciones de subte...');
     
-    // Intentar diferentes endpoints
-    const endpoints = ['/subtes/estaciones', '/subtes'];
-    let data = null;
-    
-    for (const endpoint of endpoints) {
-      try {
-        data = await makeAPIRequest(endpoint);
-        break;
-      } catch (error) {
-        continue;
-      }
-    }
-    
-    if (!data) {
-      // Datos de ejemplo como fallback
-      data = [
-        { nombre: "Plaza de Mayo", linea: "A", lat: -34.6086, lon: -58.3710 },
-        { nombre: "Congreso", linea: "A", lat: -34.6096, lon: -58.3925 },
-        { nombre: "Catedral", linea: "D", lat: -34.6078, lon: -58.3734 },
-        { nombre: "Obelisco", linea: "B", lat: -34.6037, lon: -58.3816 },
-        { nombre: "Retiro", linea: "C", lat: -34.5915, lon: -58.3732 }
-      ];
-    }
+    const data = await makeAPIRequest('/subtes/stations');
     
     res.json({
       success: true,
-      data: data,
+      data: data || [],
+      total: data ? data.length : 0,
       timestamp: new Date().toISOString()
     });
     
@@ -169,7 +199,31 @@ app.get('/api/subtes/estaciones', async (req, res) => {
     console.error('❌ Error en /api/subtes/estaciones:', error);
     res.status(500).json({ 
       success: false,
-      error: 'Error obteniendo estaciones de subte'
+      error: 'API falló',
+      details: error.message
+    });
+  }
+});
+
+// 🚇 SUBTES - Estado del servicio
+app.get('/api/subtes/estado', async (req, res) => {
+  try {
+    console.log('🟡 [API] Solicitando estado del subte...');
+    
+    const data = await makeAPIRequest('/subtes/serviceStatus');
+    
+    res.json({
+      success: true,
+      data: data || [],
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Error en /api/subtes/estado:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'API falló',
+      details: error.message
     });
   }
 });
@@ -179,18 +233,12 @@ app.get('/api/trenes/estaciones', async (req, res) => {
   try {
     console.log('🚆 [API] Solicitando estaciones de tren...');
     
-    // Datos de ejemplo hasta que encontremos el endpoint correcto
-    const estacionesEjemplo = [
-      { nombre: "Retiro", linea: "Mitre", lat: -34.5918, lon: -58.3730 },
-      { nombre: "Constitución", linea: "Roca", lat: -34.6257, lon: -58.3807 },
-      { nombre: "Once", linea: "Sarmiento", lat: -34.6092, lon: -58.4077 },
-      { nombre: "Liniers", linea: "Sarmiento", lat: -34.6425, lon: -58.5233 }
-    ];
+    const data = await makeAPIRequest('/trenes/stations');
     
     res.json({
       success: true,
-      data: estacionesEjemplo,
-      message: 'Datos de ejemplo - endpoint oficial en investigación',
+      data: data || [],
+      total: data ? data.length : 0,
       timestamp: new Date().toISOString()
     });
     
@@ -198,7 +246,31 @@ app.get('/api/trenes/estaciones', async (req, res) => {
     console.error('❌ Error en /api/trenes/estaciones:', error);
     res.status(500).json({ 
       success: false,
-      error: 'Error obteniendo estaciones de tren'
+      error: 'API falló',
+      details: error.message
+    });
+  }
+});
+
+// 🚆 TRENES - Estado del servicio
+app.get('/api/trenes/estado', async (req, res) => {
+  try {
+    console.log('🟡 [API] Solicitando estado de trenes...');
+    
+    const data = await makeAPIRequest('/trenes/serviceStatus');
+    
+    res.json({
+      success: true,
+      data: data || [],
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Error en /api/trenes/estado:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'API falló',
+      details: error.message
     });
   }
 });
@@ -208,18 +280,29 @@ app.get('/api/ecobici/estaciones', async (req, res) => {
   try {
     console.log('🚲 [API] Solicitando estaciones de Ecobici...');
     
-    // Datos de ejemplo hasta que el endpoint oficial funcione
-    const estacionesEjemplo = [
-      { nombre: "Plaza de Mayo", lat: -34.6083, lon: -58.3712 },
-      { nombre: "Congreso", lat: -34.6098, lon: -58.3925 },
-      { nombre: "Palermo", lat: -34.5806, lon: -58.4257 },
-      { nombre: "Recoleta", lat: -34.5875, lon: -58.3930 }
-    ];
+    const data = await makeAPIRequest('/ecobici/stations');
+    
+    // Filtrar por ubicación si se proporciona
+    const { lat, lng, radio = 2 } = req.query;
+    let estacionesFiltradas = data;
+    
+    if (lat && lng && data && data.length > 0) {
+      const radioKm = parseFloat(radio);
+      estacionesFiltradas = data.filter(estacion => {
+        if (!estacion.latitude || !estacion.longitude) return false;
+        const distancia = calcularDistancia(
+          parseFloat(lat), parseFloat(lng),
+          parseFloat(estacion.latitude), parseFloat(estacion.longitude)
+        );
+        return distancia <= radioKm;
+      });
+    }
     
     res.json({
       success: true,
-      data: estacionesEjemplo,
-      message: 'Datos de ejemplo - endpoint oficial en investigación',
+      data: estacionesFiltradas || [],
+      total: data ? data.length : 0,
+      filtrados: estacionesFiltradas ? estacionesFiltradas.length : 0,
       timestamp: new Date().toISOString()
     });
     
@@ -227,7 +310,8 @@ app.get('/api/ecobici/estaciones', async (req, res) => {
     console.error('❌ Error en /api/ecobici/estaciones:', error);
     res.status(500).json({ 
       success: false,
-      error: 'Error obteniendo estaciones de Ecobici'
+      error: 'API falló',
+      details: error.message
     });
   }
 });
@@ -251,16 +335,35 @@ app.get('/api/paradas-cercanas', async (req, res) => {
     const { lat, lng, radio = 1 } = req.query;
     console.log('📍 [LEGACY] Buscando paradas cercanas:', { lat, lng, radio });
     
+    // Usar el endpoint real
+    const paradas = await makeAPIRequest('/colectivos/stops');
+    let paradasFiltradas = paradas || [];
+    
+    if (lat && lng && paradas) {
+      const radioKm = parseFloat(radio);
+      paradasFiltradas = paradas.filter(parada => {
+        if (!parada.latitude || !parada.longitude) return false;
+        const distancia = calcularDistancia(
+          parseFloat(lat), parseFloat(lng),
+          parseFloat(parada.latitude), parseFloat(parada.longitude)
+        );
+        return distancia <= radioKm;
+      });
+    }
+    
     res.json({
       ubicacion: { lat: parseFloat(lat), lng: parseFloat(lng) },
       radio: parseInt(radio),
-      paradas: [],
-      message: 'Usar /api/colectivos/paradas para la nueva versión',
+      paradas: paradasFiltradas,
+      total: paradasFiltradas.length,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
     console.error('❌ Error en /api/paradas-cercanas:', error);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    res.status(500).json({ 
+      error: 'API falló',
+      details: error.message
+    });
   }
 });
 
@@ -275,4 +378,13 @@ app.listen(PORT, () => {
   console.log(`🌐 Frontend: http://localhost:${PORT}/`);
   console.log(`🚫 Cache control activado para archivos estáticos`);
   console.log(`🔑 API Keys: ${API_CONFIG.CLIENT_ID ? 'Configuradas' : 'Usando valores por defecto'}`);
+  console.log(`📋 Endpoints disponibles:`);
+  console.log(`   🚍 /api/colectivos/posiciones - Posiciones en tiempo real`);
+  console.log(`   📍 /api/colectivos/paradas - Paradas de colectivos`);
+  console.log(`   🟢 /api/colectivos/lineas - Líneas de colectivos`);
+  console.log(`   🚇 /api/subtes/estaciones - Estaciones de subte`);
+  console.log(`   🟡 /api/subtes/estado - Estado del servicio de subte`);
+  console.log(`   🚆 /api/trenes/estaciones - Estaciones de tren`);
+  console.log(`   🟡 /api/trenes/estado - Estado del servicio de trenes`);
+  console.log(`   🚲 /api/ecobici/estaciones - Estaciones de Ecobici`);
 });
