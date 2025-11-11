@@ -1,4 +1,4 @@
-// js/app.js - Con corrección del botón de ubicación
+// js/app.js - Con orden corregido de funciones
 class TransporteApp {
     constructor() {
         this.map = null;
@@ -95,6 +95,72 @@ class TransporteApp {
         console.log('✅ [LAYERS] Sistema de capas configurado');
     }
 
+    // ===== PREFERENCIAS - MOVIDA ARRIBA DE setupEventListeners =====
+    saveLayerPreferences() {
+        const preferences = {};
+        Object.keys(this.layers).forEach(layerId => {
+            preferences[layerId] = this.layers[layerId].active;
+        });
+        localStorage.setItem('transportLayers', JSON.stringify(preferences));
+        console.log('💾 [PREF] Preferencias guardadas:', preferences);
+    }
+
+    loadLayerPreferences() {
+        const saved = localStorage.getItem('transportLayers');
+        if (saved) {
+            const preferences = JSON.parse(saved);
+            console.log('💾 [PREF] Preferencias cargadas:', preferences);
+            
+            Object.keys(preferences).forEach(layerId => {
+                if (this.layers[layerId]) {
+                    this.layers[layerId].active = preferences[layerId];
+                    const checkbox = document.getElementById(`layer-${layerId}`);
+                    if (checkbox) checkbox.checked = preferences[layerId];
+                    
+                    if (preferences[layerId]) {
+                        console.log(`🔧 [PREF] Cargando capa guardada: ${layerId}`);
+                        this.loadLayerData(layerId);
+                    }
+                }
+            });
+        } else {
+            console.log('💾 [PREF] No hay preferencias guardadas');
+        }
+    }
+
+    // ===== FUNCIÓN DE MENSAJES - MOVIDA ARRIBA =====
+    showMessage(message, duration = 3000) {
+        console.log(`💬 [MSG] ${message}`);
+        
+        let messageEl = document.getElementById('app-message');
+        if (!messageEl) {
+            messageEl = document.createElement('div');
+            messageEl.id = 'app-message';
+            messageEl.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #333;
+                color: white;
+                padding: 12px 20px;
+                border-radius: 8px;
+                z-index: 10000;
+                max-width: 300px;
+                word-wrap: break-word;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            `;
+            document.body.appendChild(messageEl);
+        }
+        
+        messageEl.textContent = message;
+        messageEl.style.display = 'block';
+        
+        setTimeout(() => {
+            messageEl.style.display = 'none';
+        }, duration);
+    }
+
     setupEventListeners() {
         console.log('🔍 [EVENTS] Configurando event listeners');
         
@@ -161,7 +227,7 @@ class TransporteApp {
         console.log('✅ [EVENTS] Event listeners configurados');
     }
 
-    // ===== FUNCIÓN DE UBICACIÓN CORREGIDA =====
+    // ===== FUNCIÓN DE UBICACIÓN =====
     async centerOnUserLocation() {
         console.log('🔍 [LOCATION] Obteniendo ubicación...');
         
@@ -304,15 +370,208 @@ class TransporteApp {
         this.showMessage(`❌ Error de ubicación: ${message}`, 5000);
     }
 
-    // ... (el resto de las funciones se mantienen igual)
+    // ... (el resto de las funciones de capas y API van aquí)
+
+    // ===== GESTIÓN DE CAPAS =====
+    toggleLayersPanel() {
+        const panel = document.getElementById('layers-panel');
+        const toggleBtn = document.getElementById('toggle-layers');
+        
+        if (!panel || !toggleBtn) return;
+        
+        panel.classList.toggle('collapsed');
+        
+        if (panel.classList.contains('collapsed')) {
+            toggleBtn.innerHTML = '▶';
+        } else {
+            toggleBtn.innerHTML = '◀';
+        }
+    }
+
+    toggleLayer(layerId, isActive) {
+        console.log(`🔧 [LAYER] ${isActive ? 'Activando' : 'Desactivando'} capa: ${layerId}`);
+        
+        this.layers[layerId].active = isActive;
+        
+        if (isActive) {
+            this.loadLayerData(layerId);
+        } else {
+            this.clearLayer(layerId);
+        }
+        
+        // Guardar preferencias
+        this.saveLayerPreferences();
+    }
+
+    async loadLayerData(layerId) {
+        console.log(`🚀 [API] Cargando datos para capa: ${layerId}`);
+        
+        try {
+            switch (layerId) {
+                case 'colectivos-realtime':
+                    await this.loadColectivosRealtime();
+                    break;
+                case 'colectivos-paradas':
+                    await this.loadColectivosParadas();
+                    break;
+                case 'subtes-estaciones':
+                    await this.loadSubtesEstaciones();
+                    break;
+                case 'subtes-realtime':
+                    await this.loadSubtesRealtime();
+                    break;
+                case 'trenes-estaciones':
+                    await this.loadTrenesEstaciones();
+                    break;
+                case 'ecobici-estaciones':
+                    await this.loadEcobiciEstaciones();
+                    break;
+                default:
+                    console.warn(`⚠️ [LAYER] Capa desconocida: ${layerId}`);
+            }
+            
+            console.log(`✅ [LAYER] Carga completada para: ${layerId}`);
+            
+        } catch (error) {
+            console.error(`❌ [LAYER] Error cargando capa ${layerId}:`, error);
+            this.showMessage(`❌ API falló - ${this.getLayerName(layerId)} no disponible`, 5000);
+            
+            // Desactivar la capa automáticamente
+            this.layers[layerId].active = false;
+            const checkbox = document.getElementById(`layer-${layerId}`);
+            if (checkbox) checkbox.checked = false;
+            this.saveLayerPreferences();
+        }
+    }
+
+    clearLayer(layerId) {
+        if (this.layers[layerId].group) {
+            this.layers[layerId].group.clearLayers();
+            console.log(`🗑️ [LAYER] Capa ${layerId} limpiada`);
+        }
+    }
+
+    async refreshAllLayers() {
+        console.log('🔄 [LAYERS] Actualizando todas las capas activas...');
+        
+        for (const [layerId, layer] of Object.entries(this.layers)) {
+            if (layer.active) {
+                console.log(`🔄 [LAYERS] Actualizando capa: ${layerId}`);
+                await this.loadLayerData(layerId);
+                await new Promise(resolve => setTimeout(resolve, 300));
+            }
+        }
+        
+        console.log('✅ [LAYERS] Todas las capas actualizadas');
+    }
+
+    clearAllLayers() {
+        console.log('🗑️ [LAYERS] Limpiando todas las capas...');
+        
+        Object.keys(this.layers).forEach(layerId => {
+            this.clearLayer(layerId);
+            const checkbox = document.getElementById(`layer-${layerId}`);
+            if (checkbox) checkbox.checked = false;
+            this.layers[layerId].active = false;
+        });
+        
+        this.saveLayerPreferences();
+        console.log('✅ [LAYERS] Todas las capas limpiadas');
+    }
+
+    // ===== FUNCIONES AUXILIARES =====
+    getLayerName(layerId) {
+        const names = {
+            'colectivos-realtime': 'Colectivos en tiempo real',
+            'colectivos-paradas': 'Paradas de colectivos',
+            'subtes-estaciones': 'Estaciones de subte',
+            'subtes-realtime': 'Subtes en tiempo real',
+            'trenes-estaciones': 'Estaciones de tren',
+            'ecobici-estaciones': 'Estaciones de Ecobici'
+        };
+        return names[layerId] || layerId;
+    }
+
+    // ===== FUNCIONES EXISTENTES (mantenidas) =====
+    async installApp() {
+        console.log('🔍 [INSTALL] Iniciando proceso de instalación');
+        
+        if (this.deferredPrompt) {
+            try {
+                this.deferredPrompt.prompt();
+                const { outcome } = await this.deferredPrompt.userChoice;
+                
+                if (outcome === 'accepted') {
+                    console.log('✅ [INSTALL] Usuario aceptó instalar la PWA');
+                    this.hideInstallButton();
+                    return;
+                }
+            } catch (error) {
+                console.error('❌ [INSTALL] Error en instalación automática:', error);
+            }
+            
+            this.deferredPrompt = null;
+        }
+        
+        this.showInstallInstructions();
+        this.hideInstallButton();
+    }
+
+    showInstallInstructions() {
+        alert('Para una mejor experiencia utilice el navegador Google Chrome');
+    }
+
+    hideInstallButton() {
+        const installBtn = document.getElementById('installBtn');
+        if (installBtn) {
+            installBtn.classList.remove('visible');
+        }
+    }
+
+    setupInstallPrompt() {
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            this.deferredPrompt = e;
+        });
+
+        window.addEventListener('appinstalled', (evt) => {
+            console.log('🎉 [PWA] App instalada en el dispositivo');
+            this.hideInstallButton();
+        });
+    }
+
+    showInstallButtonIfNeeded() {
+        const installBtn = document.getElementById('installBtn');
+        if (!installBtn) return;
+        
+        const shouldShow = !this.isAppInstalled() && !this.isDesktop();
+        
+        if (shouldShow) {
+            installBtn.classList.add('visible');
+        } else {
+            installBtn.classList.remove('visible');
+        }
+    }
+
+    isAppInstalled() {
+        if (window.matchMedia('(display-mode: standalone)').matches) return true;
+        if (window.navigator.standalone) return true;
+        if (document.referrer.includes('android-app://')) return true;
+        return false;
+    }
+
+    isDesktop() {
+        const userAgent = navigator.userAgent.toLowerCase();
+        const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+        const isTablet = /(tablet|ipad|playbook|silk)|(android(?!.*mobile))/i.test(userAgent);
+        return !isMobile && !isTablet;
+    }
 
     loadApp() {
         console.log('🔍 [LOAD] Cargando aplicación...');
         this.showInstallButtonIfNeeded();
         console.log('🔍 [LOAD] App cargada completamente');
     }
-
-    // ... (las demás funciones existentes)
 }
 
 // Inicializar la app cuando se cargue el DOM
