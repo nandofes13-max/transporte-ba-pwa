@@ -11,13 +11,88 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
     <!-- Nuestros estilos -->
-    <link rel="stylesheet" href="css/styles.css?v=1.0.2">
+    <link rel="stylesheet" href="css/styles.css?v=1.0.3">
 </head>
 <body>
     <div id="app">
         <!-- Mapa Container -->
         <div id="map-container" class="map-container">
             <div id="map"></div>
+            
+            <!-- Panel de Control de Capas -->
+            <div id="layers-panel" class="layers-panel">
+                <div class="layers-header">
+                    <h3>🚗 Capas de Transporte</h3>
+                    <button id="toggle-layers" class="btn-toggle">◀</button>
+                </div>
+                <div class="layers-content">
+                    <!-- Grupo Colectivos -->
+                    <div class="layer-group">
+                        <h4>🚍 Colectivos</h4>
+                        <div class="layer-options">
+                            <label class="layer-checkbox">
+                                <input type="checkbox" id="layer-colectivos-realtime" data-layer="colectivos-realtime">
+                                <span class="checkmark"></span>
+                                Posiciones en tiempo real
+                            </label>
+                            <label class="layer-checkbox">
+                                <input type="checkbox" id="layer-colectivos-paradas" data-layer="colectivos-paradas">
+                                <span class="checkmark"></span>
+                                Paradas de colectivos
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Grupo Subtes -->
+                    <div class="layer-group">
+                        <h4>🚇 Subtes</h4>
+                        <div class="layer-options">
+                            <label class="layer-checkbox">
+                                <input type="checkbox" id="layer-subtes-estaciones" data-layer="subtes-estaciones">
+                                <span class="checkmark"></span>
+                                Estaciones de subte
+                            </label>
+                            <label class="layer-checkbox">
+                                <input type="checkbox" id="layer-subtes-realtime" data-layer="subtes-realtime">
+                                <span class="checkmark"></span>
+                                Trenes en tiempo real
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Grupo Trenes -->
+                    <div class="layer-group">
+                        <h4>🚆 Trenes</h4>
+                        <div class="layer-options">
+                            <label class="layer-checkbox">
+                                <input type="checkbox" id="layer-trenes-estaciones" data-layer="trenes-estaciones">
+                                <span class="checkmark"></span>
+                                Estaciones de tren
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Grupo Ecobici -->
+                    <div class="layer-group">
+                        <h4>🚲 Ecobici</h4>
+                        <div class="layer-options">
+                            <label class="layer-checkbox">
+                                <input type="checkbox" id="layer-ecobici-estaciones" data-layer="ecobici-estaciones">
+                                <span class="checkmark"></span>
+                                Estaciones de bicicletas
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Controles adicionales -->
+                    <div class="layer-controls">
+                        <button id="refresh-data" class="btn-refresh">🔄 Actualizar datos</button>
+                        <button id="clear-all" class="btn-clear">🗑️ Limpiar mapa</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Overlay de controles principales -->
             <div class="map-overlay">
                 <div class="map-controls">
                     <button id="installBtn" class="btn-install">
@@ -25,6 +100,9 @@
                     </button>
                     <button id="locateBtn" class="btn-primary">
                         📍 Centrar en mi ubicación
+                    </button>
+                    <button id="toggle-panel" class="btn-toggle-panel">
+                        🚗 Capas
                     </button>
                 </div>
             </div>
@@ -38,6 +116,6 @@
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="js/app.js?v=1.0.2"></script>
+    <script src="js/app.js?v=1.0.3"></script>
 </body>
 </html>
