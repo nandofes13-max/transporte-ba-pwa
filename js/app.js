@@ -1,4 +1,4 @@
-// js/app.js - Con sistema de capas de transporte
+// js/app.js - Con sistema de capas de transporte y debug completo
 class TransporteApp {
     constructor() {
         this.map = null;
@@ -216,6 +216,7 @@ class TransporteApp {
 
     toggleLayer(layerId, isActive) {
         console.log(`🔧 [LAYER] ${isActive ? 'Activando' : 'Desactivando'} capa: ${layerId}`);
+        console.log(`🔧 [LAYER] Estado actual:`, this.layers[layerId]);
         
         this.layers[layerId].active = isActive;
         
@@ -231,6 +232,7 @@ class TransporteApp {
 
     async loadLayerData(layerId) {
         console.log(`🚀 [API] Cargando datos para capa: ${layerId}`);
+        console.log(`🔧 [LAYER] Estado de la capa:`, this.layers[layerId]);
         
         try {
             switch (layerId) {
@@ -252,9 +254,16 @@ class TransporteApp {
                 case 'ecobici-estaciones':
                     await this.loadEcobiciEstaciones();
                     break;
+                default:
+                    console.warn(`⚠️ [LAYER] Capa desconocida: ${layerId}`);
             }
+            
+            console.log(`✅ [LAYER] Carga completada para: ${layerId}`);
+            
         } catch (error) {
-            console.error(`❌ [API] Error cargando capa ${layerId}:`, error);
+            console.error(`❌ [LAYER] Error cargando capa ${layerId}:`, error);
+            // Mostrar mensaje al usuario
+            this.showMessage(`Error cargando ${layerId}: ${error.message}`);
         }
     }
 
@@ -270,6 +279,7 @@ class TransporteApp {
         
         for (const [layerId, layer] of Object.entries(this.layers)) {
             if (layer.active) {
+                console.log(`🔄 [LAYERS] Actualizando capa: ${layerId}`);
                 await this.loadLayerData(layerId);
                 // Pequeña pausa entre requests para no saturar la API
                 await new Promise(resolve => setTimeout(resolve, 500));
@@ -305,12 +315,38 @@ class TransporteApp {
             `${BASE_URL}${endpoint}?client_id=${CLIENT_ID}&client_secret=${CLIENT_SECRET}`
         )}`;
         
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`API error: ${response.status}`);
-        return await response.json();
+        console.log(`🌐 [API] Haciendo request a: ${endpoint}`);
+        console.log(`🔗 [API] URL completa: ${url}`);
+        
+        try {
+            const response = await fetch(url);
+            console.log(`📡 [API] Response status: ${response.status} ${response.statusText}`);
+            
+            if (!response.ok) {
+                throw new Error(`API error: ${response.status} ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            console.log(`✅ [API] Datos recibidos:`, data);
+            console.log(`📊 [API] Tipo de datos: ${typeof data}, Es array: ${Array.isArray(data)}`);
+            
+            if (Array.isArray(data)) {
+                console.log(`🔢 [API] Cantidad de elementos: ${data.length}`);
+                if (data.length > 0) {
+                    console.log(`🔍 [API] Primer elemento:`, data[0]);
+                }
+            }
+            
+            return data;
+            
+        } catch (error) {
+            console.error(`❌ [API] Error en request:`, error);
+            throw error;
+        }
     }
 
     async loadColectivosRealtime() {
+        console.log('🚍 [COLECTIVOS] Cargando colectivos en tiempo real...');
         const data = await this.makeAPIRequest('/colectivos/vehiclePositionsSimple');
         const layer = this.layers['colectivos-realtime'].group;
         
@@ -321,6 +357,8 @@ class TransporteApp {
         const colectivosCercanos = data.filter(colectivo => 
             bounds.contains([colectivo.latitude, colectivo.longitude])
         ).slice(0, 100); // Limitar para no saturar
+        
+        console.log(`📍 [COLECTIVOS] ${colectivosCercanos.length} colectivos cerca de la vista`);
         
         colectivosCercanos.forEach(colectivo => {
             const enMovimiento = colectivo.speed > 5;
@@ -345,20 +383,23 @@ class TransporteApp {
         });
         
         console.log(`✅ [COLECTIVOS] ${colectivosCercanos.length} colectivos mostrados`);
+        this.showMessage(`${colectivosCercanos.length} colectivos mostrados en el mapa`);
     }
 
     async loadColectivosParadas() {
-        // Para paradas necesitaríamos coordenadas del usuario o vista actual
-        // Por ahora mostramos un mensaje
+        console.log('📍 [PARADAS] Cargando paradas de colectivos...');
+        this.showMessage('La función de paradas estará disponible pronto');
         console.log('📍 [PARADAS] Función de paradas pendiente de implementar');
-        // this.showMessage('La función de paradas estará disponible pronto');
     }
 
     async loadSubtesEstaciones() {
+        console.log('🚇 [SUBTES] Cargando estaciones de subte...');
         const data = await this.makeAPIRequest('/subtes/estaciones');
         const layer = this.layers['subtes-estaciones'].group;
         
         layer.clearLayers();
+        
+        console.log(`🚇 [SUBTES] ${data.length} estaciones recibidas`);
         
         data.forEach(estacion => {
             L.marker([estacion.lat, estacion.lon], {
@@ -377,18 +418,23 @@ class TransporteApp {
         });
         
         console.log(`✅ [SUBTES] ${data.length} estaciones de subte mostradas`);
+        this.showMessage(`${data.length} estaciones de subte mostradas`);
     }
 
     async loadSubtesRealtime() {
+        console.log('🚇 [SUBTE-RT] Cargando subtes en tiempo real...');
+        this.showMessage('Subtes en tiempo real - disponible pronto');
         console.log('🚇 [SUBTE-RT] Función de subtes tiempo real pendiente');
-        // this.showMessage('Subtes en tiempo real - disponible pronto');
     }
 
     async loadTrenesEstaciones() {
+        console.log('🚆 [TRENES] Cargando estaciones de tren...');
         const data = await this.makeAPIRequest('/trenes/estaciones');
         const layer = this.layers['trenes-estaciones'].group;
         
         layer.clearLayers();
+        
+        console.log(`🚆 [TRENES] ${data.length} estaciones recibidas`);
         
         data.forEach(estacion => {
             L.marker([estacion.lat, estacion.lon], {
@@ -407,13 +453,17 @@ class TransporteApp {
         });
         
         console.log(`✅ [TRENES] ${data.length} estaciones de tren mostradas`);
+        this.showMessage(`${data.length} estaciones de tren mostradas`);
     }
 
     async loadEcobiciEstaciones() {
+        console.log('🚲 [ECOBICI] Cargando estaciones de Ecobici...');
         const data = await this.makeAPIRequest('/ecobici/estaciones');
         const layer = this.layers['ecobici-estaciones'].group;
         
         layer.clearLayers();
+        
+        console.log(`🚲 [ECOBICI] ${data.length} estaciones recibidas`);
         
         data.forEach(estacion => {
             L.marker([estacion.lat, estacion.lon], {
@@ -432,6 +482,7 @@ class TransporteApp {
         });
         
         console.log(`✅ [ECOBICI] ${data.length} estaciones de bicicleta mostradas`);
+        this.showMessage(`${data.length} estaciones de Ecobici mostradas`);
     }
 
     // ===== PREFERENCIAS =====
@@ -441,12 +492,15 @@ class TransporteApp {
             preferences[layerId] = this.layers[layerId].active;
         });
         localStorage.setItem('transportLayers', JSON.stringify(preferences));
+        console.log('💾 [PREF] Preferencias guardadas:', preferences);
     }
 
     loadLayerPreferences() {
         const saved = localStorage.getItem('transportLayers');
         if (saved) {
             const preferences = JSON.parse(saved);
+            console.log('💾 [PREF] Preferencias cargadas:', preferences);
+            
             Object.keys(preferences).forEach(layerId => {
                 if (this.layers[layerId]) {
                     this.layers[layerId].active = preferences[layerId];
@@ -454,11 +508,49 @@ class TransporteApp {
                     if (checkbox) checkbox.checked = preferences[layerId];
                     
                     if (preferences[layerId]) {
+                        console.log(`🔧 [PREF] Cargando capa guardada: ${layerId}`);
                         this.loadLayerData(layerId);
                     }
                 }
             });
+        } else {
+            console.log('💾 [PREF] No hay preferencias guardadas');
         }
+    }
+
+    // ===== FUNCIÓN DE MENSAJES =====
+    showMessage(message, duration = 3000) {
+        console.log(`💬 [MSG] ${message}`);
+        
+        // Crear elemento de mensaje si no existe
+        let messageEl = document.getElementById('app-message');
+        if (!messageEl) {
+            messageEl = document.createElement('div');
+            messageEl.id = 'app-message';
+            messageEl.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #333;
+                color: white;
+                padding: 12px 20px;
+                border-radius: 8px;
+                z-index: 10000;
+                max-width: 300px;
+                word-wrap: break-word;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            `;
+            document.body.appendChild(messageEl);
+        }
+        
+        messageEl.textContent = message;
+        messageEl.style.display = 'block';
+        
+        // Ocultar después del tiempo especificado
+        setTimeout(() => {
+            messageEl.style.display = 'none';
+        }, duration);
     }
 
     // ===== FUNCIONES EXISTENTES (mantenidas) =====
