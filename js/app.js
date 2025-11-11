@@ -266,8 +266,14 @@ class TransporteApp {
             
         } catch (error) {
             console.error(`❌ [LAYER] Error cargando capa ${layerId}:`, error);
-            // Mostrar mensaje al usuario
-            this.showMessage(`Error cargando ${layerId}: ${error.message}`);
+            // Mostrar mensaje de error específico
+            this.showMessage(`❌ API falló - ${this.getLayerName(layerId)} no disponible`, 5000);
+            
+            // Desactivar la capa automáticamente
+            this.layers[layerId].active = false;
+            const checkbox = document.getElementById(`layer-${layerId}`);
+            if (checkbox) checkbox.checked = false;
+            this.saveLayerPreferences();
         }
     }
 
@@ -347,7 +353,7 @@ class TransporteApp {
             
         } catch (error) {
             console.error(`❌ [BACKEND] Error en request:`, error);
-            throw error;
+            throw new Error('API falló');
         }
     }
 
@@ -406,24 +412,44 @@ class TransporteApp {
     async loadColectivosParadas() {
         console.log('📍 [PARADAS] Cargando paradas de colectivos...');
         
-        try {
-            const data = await this.makeBackendRequest('/api/colectivos/paradas');
-            
-            if (data && data.length > 0) {
-                const layer = this.layers['colectivos-paradas'].group;
-                layer.clearLayers();
+        const data = await this.makeBackendRequest('/api/colectivos/paradas');
+        const layer = this.layers['colectivos-paradas'].group;
+        
+        layer.clearLayers();
+        
+        console.log(`📍 [PARADAS] ${data.length} paradas recibidas`);
+        
+        if (data && data.length > 0) {
+            // Procesar paradas reales
+            data.forEach(parada => {
+                const lat = parada.lat || parada.latitude;
+                const lng = parada.lon || parada.longitude;
+                const nombre = parada.nombre || parada.name || 'Parada de Colectivo';
+                const linea = parada.linea || parada.route_short_name || '';
                 
-                console.log(`📍 [PARADAS] ${data.length} paradas recibidas`);
-                
-                // Aquí procesarías las paradas reales cuando el endpoint esté disponible
-                this.showMessage(`${data.length} paradas de colectivos cargadas`);
-            } else {
-                this.showMessage('Función de paradas en desarrollo - pronto disponible');
-            }
+                if (lat && lng) {
+                    L.marker([lat, lng], {
+                        icon: L.divIcon({
+                            className: 'parada-marker',
+                            html: '📍',
+                            iconSize: [20, 20],
+                            iconAnchor: [10, 10]
+                        })
+                    })
+                    .addTo(layer)
+                    .bindPopup(`
+                        <strong>📍 ${nombre}</strong><br>
+                        ${linea ? `<em>Línea ${linea}</em><br>` : ''}
+                        <small>Parada de colectivo</small>
+                    `);
+                }
+            });
             
-        } catch (error) {
-            console.log('📍 [PARADAS] Función de paradas pendiente de implementar');
-            this.showMessage('La función de paradas estará disponible pronto');
+            console.log(`✅ [PARADAS] ${data.length} paradas mostradas`);
+            this.showMessage(`${data.length} paradas de colectivos mostradas`);
+        } else {
+            console.log('📍 [PARADAS] No hay datos de paradas disponibles');
+            this.showMessage('No hay datos de paradas disponibles en este momento');
         }
     }
 
@@ -608,6 +634,19 @@ class TransporteApp {
         setTimeout(() => {
             messageEl.style.display = 'none';
         }, duration);
+    }
+
+    // ===== FUNCIONES AUXILIARES =====
+    getLayerName(layerId) {
+        const names = {
+            'colectivos-realtime': 'Colectivos en tiempo real',
+            'colectivos-paradas': 'Paradas de colectivos',
+            'subtes-estaciones': 'Estaciones de subte',
+            'subtes-realtime': 'Subtes en tiempo real',
+            'trenes-estaciones': 'Estaciones de tren',
+            'ecobici-estaciones': 'Estaciones de Ecobici'
+        };
+        return names[layerId] || layerId;
     }
 
     // ===== FUNCIONES EXISTENTES (mantenidas) =====
