@@ -1,10 +1,13 @@
-// js/app.js - Con sistema de capas de transporte y debug completo
+// js/app.js - Con sistema de capas usando BACKEND PROPIO
 class TransporteApp {
     constructor() {
         this.map = null;
         this.userMarker = null;
         this.userLocation = null;
         this.deferredPrompt = null;
+        
+        // Configuración del backend
+        this.API_BASE_URL = window.location.origin; // Usa el mismo dominio
         
         // Sistema de capas
         this.layers = {
@@ -24,6 +27,7 @@ class TransporteApp {
         console.log('🔍 [INIT] Service Worker support:', 'serviceWorker' in navigator);
         console.log('🔍 [INIT] App instalada:', this.isAppInstalled());
         console.log('🔍 [INIT] Es desktop:', this.isDesktop());
+        console.log('🔍 [BACKEND] URL base:', this.API_BASE_URL);
         
         // Configurar eventos de instalación PWA
         this.setupInstallPrompt();
@@ -281,8 +285,8 @@ class TransporteApp {
             if (layer.active) {
                 console.log(`🔄 [LAYERS] Actualizando capa: ${layerId}`);
                 await this.loadLayerData(layerId);
-                // Pequeña pausa entre requests para no saturar la API
-                await new Promise(resolve => setTimeout(resolve, 500));
+                // Pequeña pausa entre requests para no saturar
+                await new Promise(resolve => setTimeout(resolve, 300));
             }
         }
         
@@ -304,100 +308,129 @@ class TransporteApp {
         console.log('✅ [LAYERS] Todas las capas limpiadas');
     }
 
-    // ===== API CALLS =====
-async makeAPIRequest(endpoint) {
-    // Usar API keys directamente (process.env no funciona en frontend)
-    const CLIENT_ID = '1488a5089c9d4fc3852d46ddb850a28a';
-    const CLIENT_SECRET = '799d511d89674AD893D1e2587Dc748c2';
-    const BASE_URL = 'https://apitransporte.buenosaires.gob.ar';
-    const proxy = 'https://corsproxy.io/?';
-    
-    const url = `${proxy}${encodeURIComponent(
-        `${BASE_URL}${endpoint}?client_id=${CLIENT_ID}&client_secret=${CLIENT_SECRET}`
-    )}`;
-    
-    console.log(`🌐 [API] Haciendo request a: ${endpoint}`);
-    console.log(`🔗 [API] URL completa: ${url}`);
-    
-    try {
-        const response = await fetch(url);
-        console.log(`📡 [API] Response status: ${response.status} ${response.statusText}`);
+    // ===== API CALLS - BACKEND PROPIO =====
+    async makeBackendRequest(endpoint, params = {}) {
+        const url = new URL(`${this.API_BASE_URL}${endpoint}`);
         
-        if (!response.ok) {
-            throw new Error(`API error: ${response.status} ${response.statusText}`);
-        }
-        
-        const data = await response.json();
-        console.log(`✅ [API] Datos recibidos:`, data);
-        console.log(`📊 [API] Tipo de datos: ${typeof data}, Es array: ${Array.isArray(data)}`);
-        
-        if (Array.isArray(data)) {
-            console.log(`🔢 [API] Cantidad de elementos: ${data.length}`);
-            if (data.length > 0) {
-                console.log(`🔍 [API] Primer elemento:`, data[0]);
+        // Agregar parámetros a la URL
+        Object.keys(params).forEach(key => {
+            if (params[key] !== undefined && params[key] !== null) {
+                url.searchParams.append(key, params[key]);
             }
+        });
+        
+        console.log(`🌐 [BACKEND] Haciendo request a: ${endpoint}`);
+        console.log(`🔗 [BACKEND] URL completa: ${url.toString()}`);
+        
+        try {
+            const response = await fetch(url.toString());
+            console.log(`📡 [BACKEND] Response status: ${response.status} ${response.statusText}`);
+            
+            if (!response.ok) {
+                throw new Error(`Backend error: ${response.status} ${response.statusText}`);
+            }
+            
+            const result = await response.json();
+            
+            if (!result.success) {
+                throw new Error(result.error || 'Error desconocido del backend');
+            }
+            
+            console.log(`✅ [BACKEND] Datos recibidos:`, result.data);
+            console.log(`📊 [BACKEND] Tipo de datos: ${typeof result.data}, Es array: ${Array.isArray(result.data)}`);
+            
+            if (Array.isArray(result.data)) {
+                console.log(`🔢 [BACKEND] Cantidad de elementos: ${result.data.length}`);
+            }
+            
+            return result.data;
+            
+        } catch (error) {
+            console.error(`❌ [BACKEND] Error en request:`, error);
+            throw error;
+        }
+    }
+
+    async loadColectivosRealtime() {
+        console.log('🚍 [COLECTIVOS] Cargando colectivos en tiempo real...');
+        
+        // Usar la ubicación actual para filtrar si está disponible
+        const params = {};
+        if (this.userLocation) {
+            params.lat = this.userLocation.lat;
+            params.lng = this.userLocation.lng;
+            params.radio = 3; // 3km de radio
         }
         
-        return data;
+        const data = await this.makeBackendRequest('/api/colectivos/posiciones', params);
+        const layer = this.layers['colectivos-realtime'].group;
         
-    } catch (error) {
-        console.error(`❌ [API] Error en request:`, error);
-        throw error;
-    }
-}
-    async loadColectivosRealtime() {
-    console.log('🚍 [COLECTIVOS] Cargando colectivos en tiempo real...');
-    const data = await this.makeAPIRequest('/colectivos/vehiclePositionsSimple');
-    const layer = this.layers['colectivos-realtime'].group;
-    
-    layer.clearLayers();
-    
-    // Mostrar TODOS los colectivos primero (sin filtrar)
-    console.log(`📍 [COLECTIVOS] ${data.length} colectivos recibidos en total`);
-    
-    // Filtrar cerca de la vista actual (opcional, para performance)
-    const bounds = this.map.getBounds();
-    const colectivosCercanos = data.filter(colectivo => 
-        bounds.contains([colectivo.latitude, colectivo.longitude])
-    ).slice(0, 50); // Limitar para no saturar
-    
-    console.log(`📍 [COLECTIVOS] ${colectivosCercanos.length} colectivos cerca de la vista`);
-    
-    colectivosCercanos.forEach(colectivo => {
-        const enMovimiento = colectivo.speed > 5;
+        layer.clearLayers();
         
-        L.marker([colectivo.latitude, colectivo.longitude], {
-            icon: L.divIcon({
-                className: `colectivo-marker ${enMovimiento ? 'en-movimiento' : ''}`,
-                html: '🚍',
-                iconSize: [24, 24],
-                iconAnchor: [12, 12]
+        console.log(`📍 [COLECTIVOS] ${data.length} colectivos recibidos`);
+        
+        // Filtrar por vista actual del mapa para performance
+        const bounds = this.map.getBounds();
+        const colectivosCercanos = data.filter(colectivo => 
+            bounds.contains([colectivo.latitude, colectivo.longitude])
+        ).slice(0, 50);
+        
+        console.log(`📍 [COLECTIVOS] ${colectivosCercanos.length} colectivos en vista actual`);
+        
+        colectivosCercanos.forEach(colectivo => {
+            const enMovimiento = colectivo.speed > 5;
+            
+            L.marker([colectivo.latitude, colectivo.longitude], {
+                icon: L.divIcon({
+                    className: `colectivo-marker ${enMovimiento ? 'en-movimiento' : ''}`,
+                    html: '🚍',
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
+                })
             })
-        })
-        .addTo(layer)
-        .bindPopup(`
-            <div class="popup-colectivo">
-                <strong>🚍 Línea ${colectivo.route_short_name}</strong><br>
-                <em>${colectivo.trip_headsign}</em><br>
-                <strong>Velocidad:</strong> ${colectivo.speed ? Math.round(colectivo.speed) + ' km/h' : 'Detenido'}<br>
-                <strong>Estado:</strong> ${enMovimiento ? '🟢 En movimiento' : '🟡 Detenido'}
-            </div>
-        `);
-    });
-    
-    console.log(`✅ [COLECTIVOS] ${colectivosCercanos.length} colectivos mostrados`);
-    this.showMessage(`${colectivosCercanos.length} colectivos mostrados en el mapa`);
-}
+            .addTo(layer)
+            .bindPopup(`
+                <div class="popup-colectivo">
+                    <strong>🚍 Línea ${colectivo.route_short_name}</strong><br>
+                    <em>${colectivo.trip_headsign}</em><br>
+                    <strong>Velocidad:</strong> ${colectivo.speed ? Math.round(colectivo.speed) + ' km/h' : 'Detenido'}<br>
+                    <strong>Estado:</strong> ${enMovimiento ? '🟢 En movimiento' : '🟡 Detenido'}
+                </div>
+            `);
+        });
+        
+        console.log(`✅ [COLECTIVOS] ${colectivosCercanos.length} colectivos mostrados`);
+        this.showMessage(`${colectivosCercanos.length} colectivos mostrados en el mapa`);
+    }
 
     async loadColectivosParadas() {
         console.log('📍 [PARADAS] Cargando paradas de colectivos...');
-        this.showMessage('La función de paradas estará disponible pronto');
-        console.log('📍 [PARADAS] Función de paradas pendiente de implementar');
+        
+        try {
+            const data = await this.makeBackendRequest('/api/colectivos/paradas');
+            
+            if (data && data.length > 0) {
+                const layer = this.layers['colectivos-paradas'].group;
+                layer.clearLayers();
+                
+                console.log(`📍 [PARADAS] ${data.length} paradas recibidas`);
+                
+                // Aquí procesarías las paradas reales cuando el endpoint esté disponible
+                this.showMessage(`${data.length} paradas de colectivos cargadas`);
+            } else {
+                this.showMessage('Función de paradas en desarrollo - pronto disponible');
+            }
+            
+        } catch (error) {
+            console.log('📍 [PARADAS] Función de paradas pendiente de implementar');
+            this.showMessage('La función de paradas estará disponible pronto');
+        }
     }
 
     async loadSubtesEstaciones() {
         console.log('🚇 [SUBTES] Cargando estaciones de subte...');
-        const data = await this.makeAPIRequest('/subtes/estaciones');
+        
+        const data = await this.makeBackendRequest('/api/subtes/estaciones');
         const layer = this.layers['subtes-estaciones'].group;
         
         layer.clearLayers();
@@ -405,19 +438,27 @@ async makeAPIRequest(endpoint) {
         console.log(`🚇 [SUBTES] ${data.length} estaciones recibidas`);
         
         data.forEach(estacion => {
-            L.marker([estacion.lat, estacion.lon], {
-                icon: L.divIcon({
-                    className: 'subte-marker',
-                    html: '🚇',
-                    iconSize: [20, 20],
-                    iconAnchor: [10, 10]
+            // Adaptar a diferentes estructuras de datos del backend
+            const lat = estacion.lat || estacion.latitude;
+            const lng = estacion.lon || estacion.lng || estacion.longitude;
+            const nombre = estacion.nombre || estacion.name || 'Estación de Subte';
+            const linea = estacion.linea || estacion.line || 'A';
+            
+            if (lat && lng) {
+                L.marker([lat, lng], {
+                    icon: L.divIcon({
+                        className: 'subte-marker',
+                        html: '🚇',
+                        iconSize: [20, 20],
+                        iconAnchor: [10, 10]
+                    })
                 })
-            })
-            .addTo(layer)
-            .bindPopup(`
-                <strong>🚇 ${estacion.nombre}</strong><br>
-                <em>Línea ${estacion.linea}</em>
-            `);
+                .addTo(layer)
+                .bindPopup(`
+                    <strong>🚇 ${nombre}</strong><br>
+                    <em>Línea ${linea}</em>
+                `);
+            }
         });
         
         console.log(`✅ [SUBTES] ${data.length} estaciones de subte mostradas`);
@@ -432,7 +473,8 @@ async makeAPIRequest(endpoint) {
 
     async loadTrenesEstaciones() {
         console.log('🚆 [TRENES] Cargando estaciones de tren...');
-        const data = await this.makeAPIRequest('/trenes/estaciones');
+        
+        const data = await this.makeBackendRequest('/api/trenes/estaciones');
         const layer = this.layers['trenes-estaciones'].group;
         
         layer.clearLayers();
@@ -440,19 +482,26 @@ async makeAPIRequest(endpoint) {
         console.log(`🚆 [TRENES] ${data.length} estaciones recibidas`);
         
         data.forEach(estacion => {
-            L.marker([estacion.lat, estacion.lon], {
-                icon: L.divIcon({
-                    className: 'tren-marker',
-                    html: '🚆',
-                    iconSize: [20, 20],
-                    iconAnchor: [10, 10]
+            const lat = estacion.lat || estacion.latitude;
+            const lng = estacion.lon || estacion.longitude;
+            const nombre = estacion.nombre || estacion.name || 'Estación de Tren';
+            const linea = estacion.linea || estacion.line || 'General';
+            
+            if (lat && lng) {
+                L.marker([lat, lng], {
+                    icon: L.divIcon({
+                        className: 'tren-marker',
+                        html: '🚆',
+                        iconSize: [20, 20],
+                        iconAnchor: [10, 10]
+                    })
                 })
-            })
-            .addTo(layer)
-            .bindPopup(`
-                <strong>🚆 ${estacion.nombre}</strong><br>
-                <em>Línea ${estacion.linea}</em>
-            `);
+                .addTo(layer)
+                .bindPopup(`
+                    <strong>🚆 ${nombre}</strong><br>
+                    <em>Línea ${linea}</em>
+                `);
+            }
         });
         
         console.log(`✅ [TRENES] ${data.length} estaciones de tren mostradas`);
@@ -461,7 +510,8 @@ async makeAPIRequest(endpoint) {
 
     async loadEcobiciEstaciones() {
         console.log('🚲 [ECOBICI] Cargando estaciones de Ecobici...');
-        const data = await this.makeAPIRequest('/ecobici/estaciones');
+        
+        const data = await this.makeBackendRequest('/api/ecobici/estaciones');
         const layer = this.layers['ecobici-estaciones'].group;
         
         layer.clearLayers();
@@ -469,19 +519,25 @@ async makeAPIRequest(endpoint) {
         console.log(`🚲 [ECOBICI] ${data.length} estaciones recibidas`);
         
         data.forEach(estacion => {
-            L.marker([estacion.lat, estacion.lon], {
-                icon: L.divIcon({
-                    className: 'ecobici-marker',
-                    html: '🚲',
-                    iconSize: [20, 20],
-                    iconAnchor: [10, 10]
+            const lat = estacion.lat || estacion.latitude;
+            const lng = estacion.lon || estacion.longitude;
+            const nombre = estacion.nombre || estacion.name || 'Estación Ecobici';
+            
+            if (lat && lng) {
+                L.marker([lat, lng], {
+                    icon: L.divIcon({
+                        className: 'ecobici-marker',
+                        html: '🚲',
+                        iconSize: [20, 20],
+                        iconAnchor: [10, 10]
+                    })
                 })
-            })
-            .addTo(layer)
-            .bindPopup(`
-                <strong>🚲 ${estacion.nombre}</strong><br>
-                <em>Ecobici Station</em>
-            `);
+                .addTo(layer)
+                .bindPopup(`
+                    <strong>🚲 ${nombre}</strong><br>
+                    <em>Ecobici Station</em>
+                `);
+            }
         });
         
         console.log(`✅ [ECOBICI] ${data.length} estaciones de bicicleta mostradas`);
@@ -525,7 +581,6 @@ async makeAPIRequest(endpoint) {
     showMessage(message, duration = 3000) {
         console.log(`💬 [MSG] ${message}`);
         
-        // Crear elemento de mensaje si no existe
         let messageEl = document.getElementById('app-message');
         if (!messageEl) {
             messageEl = document.createElement('div');
@@ -550,7 +605,6 @@ async makeAPIRequest(endpoint) {
         messageEl.textContent = message;
         messageEl.style.display = 'block';
         
-        // Ocultar después del tiempo especificado
         setTimeout(() => {
             messageEl.style.display = 'none';
         }, duration);
