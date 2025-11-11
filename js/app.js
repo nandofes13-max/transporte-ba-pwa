@@ -1,10 +1,21 @@
-// js/app.js - Con botón visible en móviles no-Chrome
+// js/app.js - Con sistema de capas de transporte
 class TransporteApp {
     constructor() {
         this.map = null;
         this.userMarker = null;
         this.userLocation = null;
         this.deferredPrompt = null;
+        
+        // Sistema de capas
+        this.layers = {
+            'colectivos-realtime': { group: null, active: false, type: 'realtime' },
+            'colectivos-paradas': { group: null, active: false, type: 'static' },
+            'subtes-estaciones': { group: null, active: false, type: 'static' },
+            'subtes-realtime': { group: null, active: false, type: 'realtime' },
+            'trenes-estaciones': { group: null, active: false, type: 'static' },
+            'ecobici-estaciones': { group: null, active: false, type: 'static' }
+        };
+        
         this.init();
     }
 
@@ -89,6 +100,9 @@ class TransporteApp {
         // Inicializar el mapa inmediatamente
         this.initMap();
         
+        // Configurar sistema de capas
+        this.setupLayersSystem();
+        
         // Configurar event listeners
         this.setupEventListeners();
         
@@ -128,9 +142,25 @@ class TransporteApp {
         console.log('✅ [MAP] Mapa inicializado');
     }
 
+    // ===== SISTEMA DE CAPAS =====
+    setupLayersSystem() {
+        console.log('🔧 [LAYERS] Configurando sistema de capas...');
+        
+        // Inicializar grupos de capas
+        Object.keys(this.layers).forEach(layerId => {
+            this.layers[layerId].group = L.layerGroup().addTo(this.map);
+        });
+        
+        // Cargar preferencias guardadas
+        this.loadLayerPreferences();
+        
+        console.log('✅ [LAYERS] Sistema de capas configurado');
+    }
+
     setupEventListeners() {
         console.log('🔍 [EVENTS] Configurando event listeners');
         
+        // Botones principales
         document.getElementById('locateBtn').addEventListener('click', () => {
             console.log('🖱️ [BTN] Botón ubicación clickeado');
             this.centerOnUserLocation();
@@ -140,10 +170,298 @@ class TransporteApp {
             console.log('🖱️ [BTN] Botón instalar clickeado');
             this.installApp();
         });
+
+        // Sistema de capas
+        document.getElementById('toggle-panel').addEventListener('click', () => {
+            this.toggleLayersPanel();
+        });
+
+        document.getElementById('toggle-layers').addEventListener('click', () => {
+            this.toggleLayersPanel();
+        });
+
+        // Checkboxes de capas
+        document.querySelectorAll('.layer-checkbox input').forEach(checkbox => {
+            checkbox.addEventListener('change', (e) => {
+                const layerId = e.target.dataset.layer;
+                this.toggleLayer(layerId, e.target.checked);
+            });
+        });
+
+        // Controles adicionales
+        document.getElementById('refresh-data').addEventListener('click', () => {
+            this.refreshAllLayers();
+        });
+
+        document.getElementById('clear-all').addEventListener('click', () => {
+            this.clearAllLayers();
+        });
         
         console.log('✅ [EVENTS] Event listeners configurados');
     }
 
+    // ===== GESTIÓN DE CAPAS =====
+    toggleLayersPanel() {
+        const panel = document.getElementById('layers-panel');
+        const toggleBtn = document.getElementById('toggle-layers');
+        
+        panel.classList.toggle('collapsed');
+        
+        if (panel.classList.contains('collapsed')) {
+            toggleBtn.innerHTML = '▶';
+        } else {
+            toggleBtn.innerHTML = '◀';
+        }
+    }
+
+    toggleLayer(layerId, isActive) {
+        console.log(`🔧 [LAYER] ${isActive ? 'Activando' : 'Desactivando'} capa: ${layerId}`);
+        
+        this.layers[layerId].active = isActive;
+        
+        if (isActive) {
+            this.loadLayerData(layerId);
+        } else {
+            this.clearLayer(layerId);
+        }
+        
+        // Guardar preferencias
+        this.saveLayerPreferences();
+    }
+
+    async loadLayerData(layerId) {
+        console.log(`🚀 [API] Cargando datos para capa: ${layerId}`);
+        
+        try {
+            switch (layerId) {
+                case 'colectivos-realtime':
+                    await this.loadColectivosRealtime();
+                    break;
+                case 'colectivos-paradas':
+                    await this.loadColectivosParadas();
+                    break;
+                case 'subtes-estaciones':
+                    await this.loadSubtesEstaciones();
+                    break;
+                case 'subtes-realtime':
+                    await this.loadSubtesRealtime();
+                    break;
+                case 'trenes-estaciones':
+                    await this.loadTrenesEstaciones();
+                    break;
+                case 'ecobici-estaciones':
+                    await this.loadEcobiciEstaciones();
+                    break;
+            }
+        } catch (error) {
+            console.error(`❌ [API] Error cargando capa ${layerId}:`, error);
+        }
+    }
+
+    clearLayer(layerId) {
+        if (this.layers[layerId].group) {
+            this.layers[layerId].group.clearLayers();
+            console.log(`🗑️ [LAYER] Capa ${layerId} limpiada`);
+        }
+    }
+
+    async refreshAllLayers() {
+        console.log('🔄 [LAYERS] Actualizando todas las capas activas...');
+        
+        for (const [layerId, layer] of Object.entries(this.layers)) {
+            if (layer.active) {
+                await this.loadLayerData(layerId);
+                // Pequeña pausa entre requests para no saturar la API
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+        }
+        
+        console.log('✅ [LAYERS] Todas las capas actualizadas');
+    }
+
+    clearAllLayers() {
+        console.log('🗑️ [LAYERS] Limpiando todas las capas...');
+        
+        Object.keys(this.layers).forEach(layerId => {
+            this.clearLayer(layerId);
+            // Desmarcar checkboxes
+            const checkbox = document.getElementById(`layer-${layerId}`);
+            if (checkbox) checkbox.checked = false;
+            this.layers[layerId].active = false;
+        });
+        
+        this.saveLayerPreferences();
+        console.log('✅ [LAYERS] Todas las capas limpiadas');
+    }
+
+    // ===== API CALLS =====
+    async makeAPIRequest(endpoint) {
+        const CLIENT_ID = process.env.CLIENT_ID || '1488a5089c9d4fc3852d46ddb850a28a';
+        const CLIENT_SECRET = process.env.CLIENT_SECRET || '799d511d89674AD893D1e2587Dc748c2';
+        const BASE_URL = 'https://apitransporte.buenosaires.gob.ar';
+        const proxy = 'https://corsproxy.io/?';
+        
+        const url = `${proxy}${encodeURIComponent(
+            `${BASE_URL}${endpoint}?client_id=${CLIENT_ID}&client_secret=${CLIENT_SECRET}`
+        )}`;
+        
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`API error: ${response.status}`);
+        return await response.json();
+    }
+
+    async loadColectivosRealtime() {
+        const data = await this.makeAPIRequest('/colectivos/vehiclePositionsSimple');
+        const layer = this.layers['colectivos-realtime'].group;
+        
+        layer.clearLayers();
+        
+        // Filtrar cerca de la vista actual (opcional, para performance)
+        const bounds = this.map.getBounds();
+        const colectivosCercanos = data.filter(colectivo => 
+            bounds.contains([colectivo.latitude, colectivo.longitude])
+        ).slice(0, 100); // Limitar para no saturar
+        
+        colectivosCercanos.forEach(colectivo => {
+            const enMovimiento = colectivo.speed > 5;
+            
+            L.marker([colectivo.latitude, colectivo.longitude], {
+                icon: L.divIcon({
+                    className: `colectivo-marker ${enMovimiento ? 'en-movimiento' : ''}`,
+                    html: '🚍',
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
+                })
+            })
+            .addTo(layer)
+            .bindPopup(`
+                <div class="popup-colectivo">
+                    <strong>🚍 Línea ${colectivo.route_short_name}</strong><br>
+                    <em>${colectivo.trip_headsign}</em><br>
+                    <strong>Velocidad:</strong> ${colectivo.speed ? Math.round(colectivo.speed) + ' km/h' : 'Detenido'}<br>
+                    <strong>Estado:</strong> ${enMovimiento ? '🟢 En movimiento' : '🟡 Detenido'}
+                </div>
+            `);
+        });
+        
+        console.log(`✅ [COLECTIVOS] ${colectivosCercanos.length} colectivos mostrados`);
+    }
+
+    async loadColectivosParadas() {
+        // Para paradas necesitaríamos coordenadas del usuario o vista actual
+        // Por ahora mostramos un mensaje
+        console.log('📍 [PARADAS] Función de paradas pendiente de implementar');
+        // this.showMessage('La función de paradas estará disponible pronto');
+    }
+
+    async loadSubtesEstaciones() {
+        const data = await this.makeAPIRequest('/subtes/estaciones');
+        const layer = this.layers['subtes-estaciones'].group;
+        
+        layer.clearLayers();
+        
+        data.forEach(estacion => {
+            L.marker([estacion.lat, estacion.lon], {
+                icon: L.divIcon({
+                    className: 'subte-marker',
+                    html: '🚇',
+                    iconSize: [20, 20],
+                    iconAnchor: [10, 10]
+                })
+            })
+            .addTo(layer)
+            .bindPopup(`
+                <strong>🚇 ${estacion.nombre}</strong><br>
+                <em>Línea ${estacion.linea}</em>
+            `);
+        });
+        
+        console.log(`✅ [SUBTES] ${data.length} estaciones de subte mostradas`);
+    }
+
+    async loadSubtesRealtime() {
+        console.log('🚇 [SUBTE-RT] Función de subtes tiempo real pendiente');
+        // this.showMessage('Subtes en tiempo real - disponible pronto');
+    }
+
+    async loadTrenesEstaciones() {
+        const data = await this.makeAPIRequest('/trenes/estaciones');
+        const layer = this.layers['trenes-estaciones'].group;
+        
+        layer.clearLayers();
+        
+        data.forEach(estacion => {
+            L.marker([estacion.lat, estacion.lon], {
+                icon: L.divIcon({
+                    className: 'tren-marker',
+                    html: '🚆',
+                    iconSize: [20, 20],
+                    iconAnchor: [10, 10]
+                })
+            })
+            .addTo(layer)
+            .bindPopup(`
+                <strong>🚆 ${estacion.nombre}</strong><br>
+                <em>Línea ${estacion.linea}</em>
+            `);
+        });
+        
+        console.log(`✅ [TRENES] ${data.length} estaciones de tren mostradas`);
+    }
+
+    async loadEcobiciEstaciones() {
+        const data = await this.makeAPIRequest('/ecobici/estaciones');
+        const layer = this.layers['ecobici-estaciones'].group;
+        
+        layer.clearLayers();
+        
+        data.forEach(estacion => {
+            L.marker([estacion.lat, estacion.lon], {
+                icon: L.divIcon({
+                    className: 'ecobici-marker',
+                    html: '🚲',
+                    iconSize: [20, 20],
+                    iconAnchor: [10, 10]
+                })
+            })
+            .addTo(layer)
+            .bindPopup(`
+                <strong>🚲 ${estacion.nombre}</strong><br>
+                <em>Ecobici Station</em>
+            `);
+        });
+        
+        console.log(`✅ [ECOBICI] ${data.length} estaciones de bicicleta mostradas`);
+    }
+
+    // ===== PREFERENCIAS =====
+    saveLayerPreferences() {
+        const preferences = {};
+        Object.keys(this.layers).forEach(layerId => {
+            preferences[layerId] = this.layers[layerId].active;
+        });
+        localStorage.setItem('transportLayers', JSON.stringify(preferences));
+    }
+
+    loadLayerPreferences() {
+        const saved = localStorage.getItem('transportLayers');
+        if (saved) {
+            const preferences = JSON.parse(saved);
+            Object.keys(preferences).forEach(layerId => {
+                if (this.layers[layerId]) {
+                    this.layers[layerId].active = preferences[layerId];
+                    const checkbox = document.getElementById(`layer-${layerId}`);
+                    if (checkbox) checkbox.checked = preferences[layerId];
+                    
+                    if (preferences[layerId]) {
+                        this.loadLayerData(layerId);
+                    }
+                }
+            });
+        }
+    }
+
+    // ===== FUNCIONES EXISTENTES (mantenidas) =====
     async installApp() {
         console.log('🔍 [INSTALL] Iniciando proceso de instalación');
         console.log('🔍 [INSTALL] deferredPrompt disponible:', !!this.deferredPrompt);
@@ -171,17 +489,16 @@ class TransporteApp {
             console.log('🔍 [INSTALL] deferredPrompt limpiado');
         }
         
-        // 🆕 SI NO HAY DEFERREDPROMPT, MOSTRAR INSTRUCCIONES DE INSTALACIÓN MANUAL
         console.log('🔍 [INSTALL] Mostrando instrucciones de instalación manual...');
         this.showInstallInstructions();
         console.log('🔍 [INSTALL] Ocultando botón...');
         this.hideInstallButton();
     }
 
-    // 🆕 FUNCIÓN PARA INSTRUCCIONES DE INSTALACIÓN MANUAL
-   showInstallInstructions() {
-    alert('Para una mejor experiencia utilice el navegador Google Chrome');
-}
+    showInstallInstructions() {
+        alert('Para una mejor experiencia utilice el navegador Google Chrome');
+    }
+
     hideInstallButton() {
         console.log('🔍 [HIDE] Intentando ocultar botón de instalación');
         const installBtn = document.getElementById('installBtn');
@@ -202,13 +519,11 @@ class TransporteApp {
         locateBtn.disabled = true;
 
         try {
-            // PRIMERO: Intentar GPS de alta precisión
             const position = await this.getCurrentPosition();
             const { latitude, longitude, accuracy } = position.coords;
             
             console.log('📍 [LOCATION] GPS obtenido:', latitude, longitude, 'Precisión:', accuracy, 'm');
             
-            // Si la precisión es mala (>1000m), usar fallback
             if (accuracy > 1000) {
                 console.log('⚠️ [LOCATION] Precisión GPS pobre, usando fallback...');
                 await this.useIPGeolocationFallback();
@@ -221,7 +536,6 @@ class TransporteApp {
         } catch (error) {
             console.error('❌ [LOCATION] Error GPS:', error);
             
-            // FALLBACK: Usar geolocalización por IP
             try {
                 await this.useIPGeolocationFallback();
             } catch (ipError) {
@@ -234,7 +548,6 @@ class TransporteApp {
         }
     }
 
-    // FUNCIÓN DE FALLBACK POR IP
     async useIPGeolocationFallback() {
         console.log('🌐 [LOCATION] Usando geolocalización por IP...');
         
@@ -253,7 +566,6 @@ class TransporteApp {
                 throw new Error('No se pudo obtener ubicación por IP');
             }
         } catch (error) {
-            // ÚLTIMO FALLBACK: Buenos Aires centro
             console.log('🏙️ [LOCATION] Usando ubicación por defecto (Buenos Aires)');
             this.userLocation = { lat: -34.6037, lng: -58.3816 };
             this.centerMapOnLocation(-34.6037, -58.3816);
@@ -261,7 +573,6 @@ class TransporteApp {
         }
     }
 
-    // FUNCIÓN PARA CENTRAR MAPA (reutilizable)
     centerMapOnLocation(lat, lng) {
         this.map.setView([lat, lng], 15);
         
